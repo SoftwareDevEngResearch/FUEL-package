@@ -245,11 +245,11 @@ class Household:
 
 if __name__ == "__main__":
 
-    # x = Household('./olivier_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
+    # x = Household('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
 
     # print(x.stove_types())
     # x.plot_cooking_events('telia')
 
-    data_1 = Household('./olivier_files/test_4.csv')
+    data_1 = Household('./data_files/test_4.csv')
     # print(data_1.cooking_events(primary_threshold= -5, time_between_events= 2, stove = "5"))
     data_1.plot_cooking_events(stove='telia')
