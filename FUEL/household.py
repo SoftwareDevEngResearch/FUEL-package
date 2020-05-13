@@ -81,7 +81,6 @@ def reformat_olivier_files(datafile_path):
 
     data = pd.read_csv(datafile_path, header=None)
     df_stoves, stoves, fuels = stove_info(data)
-    print(type(df_stoves['timestamp'][20]))
     return df_stoves, stoves, fuels
 
 
@@ -305,7 +304,7 @@ class Household:
         # A day is classified as 24 hours (so day 1 is the first 24 hours after receiving the stove)
         # A dictionary will be returned with the key signifying the day and the value being how many minutes the
         # stove was used for during that period
-        # Finally a dataframe will be compiled with the cooking durations for all stoves. 
+        # Finally a dataframe will be compiled with the cooking durations for all stoves.
 
         stoves = self.cooking_events(stove)
         #list of all cooking events for each stove
