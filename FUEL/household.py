@@ -22,11 +22,12 @@ def reformat_olivier_files(datafile_path):
         
         stove_info_start = []
         for (r, name) in enumerate(dataframe[0]):
-            if name == "timestamp":
+            if name == "Timestamp":
                 stove_info_start = r
                 break
-            if type(stove_info_start) is list:
-                raise ImportError("Could not find the beginning of data. Please ensure that there are appropriate "
+
+        if type(stove_info_start) is list:
+            raise ImportError("Could not find the beginning of data. Please ensure that there are appropriate "
                                   "column headers and that the timestamp column is labeled as timestamp.")
 
         df_stoves = dataframe.iloc[stove_info_start:, :]
@@ -86,7 +87,7 @@ def reformat_olivier_files(datafile_path):
 
 class Household:
 
-    def __init__(self, dataframe, stoves, fuels, primary_threshold=15,  time_between_events=60):
+    def __init__(self, dataframe, stoves, fuels, primary_threshold=15,  time_between_events=30):
         '''When called this class will verify that the input arguments are in the correct formats and set self values'''
 
         # First it will check that the dataframe is a dataframe and that the stoves and fuels are  in lists
@@ -119,17 +120,6 @@ class Household:
         self.fuels = fuels
         self.primary_threshold = primary_threshold
         self.time_between_events = time_between_events
-
-
-    def stove_types(self):
-        ''' Display stove types captured in data'''
-
-        return self.stoves
-
-    def fuel_types(self):
-        '''Display fuel types captured in data'''
-
-        return self.fuels
 
     def check_stove_type(self, stove):
         '''This will check to see if the stove input is in dataset'''
@@ -294,28 +284,18 @@ class Household:
         return fuel_usage
 
     def cooking_duration(self, stove="All"):
-        '''This will return a datframe with the number of cooking minutes for each day for each stove.'''
+        '''This will return a data frame with the number of cooking minutes for each day for each stove.'''
 
-        # First the cooking events must be pulled from the cooking_events() function.
-        # To determine the duration of each cooking event the temperature information will be split at the location of
-        # the cooking event. The first 0 temperature found before the cooking event will be assumed as the beginning
-        # of the cooking event and the first zero temperature found after the cooking event will be assumed as the end
-        # of the cooking event.
-        # A day is classified as 24 hours (so day 1 is the first 24 hours after receiving the stove)
-        # A dictionary will be returned with the key signifying the day and the value being how many minutes the
-        # stove was used for during that period
-        # Finally a dataframe will be compiled with the cooking durations for all stoves.
+        # First the total cooking duration for each event on each stove will be determined.
+        # Then the total cooking duration for each day on each stove will be determined
+        # Finally a data frame will be produced that contains this information.
 
-        stoves = self.cooking_events(stove)
-        #list of all cooking events for each stove
+        def cooking_durations(cooking_events_index, cooking_temps):
+            ''' This will return a list of the beginning and end time for every identified cooking event on a stove.'''
 
-        all_cooking_info = []
-
-        for s in stoves:
-            cooking_events_index = self.cook_events[s]
-            cooking_temps = self.df_stoves[s]
-
-            cooking_durations = []
+            # Takes in the index of each identified cooking event and the recorded temperature for that stove
+            # Finds the beginning and end of cooking event by finding the lowest temperatures on each side of the event.
+            cooking_event_list = []
 
             for i in cooking_events_index:
                 # create two different list split at the located cooking event
@@ -331,7 +311,17 @@ class Household:
                     if temp == 0:
                         end_time = i + k
                         break
-                cooking_durations.append((start_time, end_time))
+                cooking_event_list.append((start_time, end_time))
+
+            return cooking_event_list
+
+        def daily_cooking_time(cooking_durations_list):
+            '''This will return the total cooking time on a stove for each 24 hour period of study.'''
+
+            # Takes in the list of cooking event durations
+            # Determines the length of each cooking event and which day of the study it occurred on.
+            # Adds the duration of cooking time to a dictionary associated with the correct day.
+            # If no cooking was recorded on a stove during a day it will add a 0 value entry to dictionary for that day.
 
             day = 0
             daily_cooking = {}
@@ -352,12 +342,25 @@ class Household:
                 if i == len(cooking_durations)-1:
                     day += 1
                     daily_cooking.update({day: mins})
+
             if len(daily_cooking) != study_duration:
                 for i in range(study_duration):
                     day = i+1
                     if day not in daily_cooking:
                         mins = 0
                         daily_cooking.update({day: mins})
+
+            return daily_cooking
+
+        stoves = self.cooking_events(stove)
+        all_cooking_info = []
+
+        for s in stoves:
+            cooking_events_index = self.cook_events[s]
+            cooking_temps = self.df_stoves[s]
+
+            cooking_durations_list = cooking_durations(cooking_events_index, cooking_temps)
+            daily_cooking = daily_cooking_time(cooking_durations_list)
 
             all_cooking_info.append(daily_cooking)
 
@@ -379,10 +382,11 @@ if __name__ == "__main__":
     # print(data_1)
     #data_1.plot_stove().show()
     
-    df, stoves, fuels = reformat_olivier_files('./data_files/test_datetime.csv')
+    df, stoves, fuels = reformat_olivier_files('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
     # print(df.columns.values)
     x = Household(df, stoves, fuels, time_between_events=30)
-    # x.plot_fuel().show()
+    #x.plot_fuel().show()
+    #x.plot_stove().show()
     # print(x.cooking_events())
     #x.plot_cooking_events().show()
-    print(x.cooking_duration())
+    print(x.df_stoves)
