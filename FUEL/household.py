@@ -254,21 +254,50 @@ class Household:
                 go.Scatter(x=self.df_stoves['timestamp'][events[s]],
                            y=self.df_stoves[s][events[s]],
                            mode='markers',
-                           name=s.split(' ')[0] + ' Cooking Events'
+                           name=s + ' Cooking Events'
                            )
                         )
         return fig
 
-    def fuel_usage(self, fuel_type, weight_threshold=0.2):
+    def fuel_usage(self, fuel = "All", weight_threshold=0.2):
         '''Returns the total fuel used during testing period'''
 
         #NEEDS WORK
 
-        if type(fuel_type) is not str:
+        if type(fuel) is not str:
             raise ValueError('Only one fuel may be put in at a time and it must be entered as a string.')
 
-        fuel_type = self.check_fuel_type(fuel_type)
+        fuel_type = self.check_fuel_type(fuel)
+        
+        # finding where the fuel weight changed
+        fuel_change = {}
+        for f in fuel_type:
+            # finding the little peaks
+            peaks = find_peaks(self.df_stoves[f].values, height=1, distance=1, plateau_size=0)[0]
+            weight = self.df_stoves[f][peaks[0]]
+            weight_change = [peaks[0]]
+            # if the weight difference between these peaks is less than the weight threshold ignore it
+            for i in peaks[1:]:
+                new_weight = self.df_stoves[f][i]
+                if abs(new_weight - weight) < weight_threshold:
+                    pass
+                else:
+                    weight_change.append(i)
+                    weight = self.df_stoves[f][i]
 
+            fuel_change.update({f: weight_change})
+        
+        fig = self.plot_fuel(fuel)
+
+        for f in fuel_type:
+            fig.add_trace(
+                go.Scatter(x=self.df_stoves['timestamp'][fuel_change[f]],
+                           y=self.df_stoves[f][fuel_change[f]],
+                           mode='markers',
+                           name=f + ' fuel_change'
+                           )
+                        )
+        """
         fuel_usage = {}
         for i, fuel in enumerate(fuel_type):
             data = self.df_stoves[fuel]
@@ -280,8 +309,8 @@ class Household:
                     fuel_change.append(point)
 
             total_usage = fuel_change[0]-fuel_change[-1]
-            fuel_usage.update({fuel: total_usage})
-        return fuel_usage
+            fuel_usage.update({fuel: total_usage})"""
+        return fig.show()
 
     def cooking_duration(self, stove="All"):
         '''This will return a data frame with the number of cooking minutes for each day for each stove.'''
@@ -390,4 +419,5 @@ if __name__ == "__main__":
     #x.plot_stove().show()
     # print(x.cooking_events())
     #x.plot_cooking_events().show()
-    print(x.cooking_duration())
+    #print(x.cooking_duration())
+    x.fuel_usage()
