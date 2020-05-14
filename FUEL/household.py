@@ -328,7 +328,8 @@ class Household:
             study_duration = (self.df_stoves['timestamp'].iloc[-1]-self.df_stoves['timestamp'][0]).days
             study_began = self.df_stoves['timestamp'][0]
             mins = 0
-            for i, idx in enumerate(cooking_durations):
+
+            for i, idx in enumerate(cooking_durations_list):
                 end_time = self.df_stoves['timestamp'][idx[1]]
                 start_time = self.df_stoves['timestamp'][idx[0]]
                 days_since_start = (end_time - study_began).days
@@ -339,7 +340,7 @@ class Household:
 
                 mins += (end_time-start_time).seconds/60
 
-                if i == len(cooking_durations)-1:
+                if i == len(cooking_durations_list)-1:
                     day += 1
                     daily_cooking.update({day: mins})
 
@@ -389,4 +390,4 @@ if __name__ == "__main__":
     #x.plot_stove().show()
     # print(x.cooking_events())
     #x.plot_cooking_events().show()
-    print(x.df_stoves)
+    print(x.cooking_duration())
