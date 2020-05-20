@@ -3,21 +3,33 @@ import numpy as np
 
 
 def reformat_olivier_files(datafile_path):
+    """Reformatting the datafiles so that they can be ran in household.py.
+
+    Args:
+        str : The datafile path
+
+    Returns:
+        df_stoves : A dataframe (df_stoves) containing only necessary information that is appropriate formatted
+        stoves : A list of all stoves in study data
+        fuels : A list of all fuels in study data
+
+    """
 
     if type(datafile_path) != str:
         raise ValueError("Must put in file name as a String!")
 
     def stove_info(dataframe):
-        '''Creating stove data set.'''
+        """Creating stove dataframe.
 
-        # This function will be called by the init function
-        # The file should be formatted such that there is a Timestamp header in the first column of the data set
-        # which marks the beginning of the sensor data.
-        # This function will create a new data set beginning at the location of that Timestamp header
-        # It will then assign the first row as headers and re-format the
-        # This function will also call the reformat_dataframe() function to convert the timestamps from strings
-        # to datetime
+        Args:
+            dataframe : The un-altered .csv file
 
+        Returns:
+            df_stoves : A dataframe containing all study sensor readings and timestamps
+            stoves : A list of all stoves found in study data
+            fuels : A list of all fuels found in study data
+
+        """
         stove_info_start = []
         for (r, name) in enumerate(dataframe[0]):
             if name == "timestamp":
@@ -37,13 +49,17 @@ def reformat_olivier_files(datafile_path):
         return df_stoves, stoves, fuels
 
     def format_columns(dataframe):
-        '''This function creates the appropriate columns'''
+        '''Renames columns appropriately.
 
-        # first it locates the column headers
-        # it then converts all column headers into lower case
-        # then removes all columns pertaining to usage (info not needed)
-        # pulls out list of stoves and fuels
-        # rename all columns with only their stove or fuel type
+        Args:
+            dataframe : The dataframe containing all study sensor readings and timestamps (df_stoves)
+
+        Returns:
+            dataframe : The df_stoves dataframe with appropriate column headers
+            stoves : A list of all stoves found in study data
+            fuels : A list of all fuels found in study data
+
+        '''
 
         dataframe.columns = dataframe.iloc[0]
         dataframe.columns = map(str.lower, dataframe.columns)
@@ -66,12 +82,15 @@ def reformat_olivier_files(datafile_path):
         return dataframe, stoves, fuels
 
     def reformat_dataframe(dataframe):
-        ''''reformatting the dataframe'''
+        ''''Reformats the dataframes timestamps and sensor data.
 
-        # first all values in the dataframe will be converted from a str to a float
-        # (with the exception of the timestamp col)
-        # then the timestamp will be converted to date time if it is a string
+        Args:
+            dataframe : The dataframe containing all study sensor readings and timestamps (df_stoves)
 
+        Returns:
+            dataframe : The df_stoves dataframe with the timestamp column converted to datetime and all sensor values
+                        converted to floats
+        '''
         dataframe = dataframe.apply(lambda x: np.float64(x) if x.name != 'timestamp' else x)
 
         dataframe['timestamp'] = dataframe['timestamp'].astype('datetime64[ns]')
@@ -79,9 +98,10 @@ def reformat_olivier_files(datafile_path):
         return dataframe
 
     data = pd.read_csv(datafile_path, header=None)
-    # I want to convert the entire dataframe to lower case to mak it more universal
+    # converting the entire dataframe to lower case to make it more universal
     data = data.applymap(lambda s:s.lower() if type(s) == str else s)
     df_stoves, stoves, fuels = stove_info(data)
+
     return df_stoves, stoves, fuels
 
 
