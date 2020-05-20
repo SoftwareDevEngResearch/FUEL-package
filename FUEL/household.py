@@ -101,11 +101,12 @@ class Household:
         '''Check if fuel input is in dataset
 
         Args:
-            fuel (string): The name of the stove(s) that is being checked for.
+            fuel (string): The name of the stove(s) that is being checked for. If multiple fuels are desired they must
+                            be input as a list of stings.
 
         Returns:
-            stove_type (list) : If all stoves are found in the original list of stoves in the dataframe then it returns
-                                a list of the stoves.
+            fuel_type (list) : If all fuels are found in the original list of stoves in the dataframe then it returns
+                                a list of the fuels.
 
         '''
 
@@ -130,11 +131,17 @@ class Household:
         return fuel_type
 
     def plot_stove(self, stove="All"):
-        '''Must add .show() after calling function for plot to be generated'''
+        '''Plotting the temperature data of stoves over duration of study.
 
-        # If no stove is specified in the input then all stoves will be plotted
-        # If a stove is specified it must be input in a string and match a stove found in the dataset
-        # This will output an interactive plot via a html which will only show up by adding .show() after calling it. 
+        Args:
+            stove (str): If only plotting one stove temperature readings stove must be input as a str. If plotting
+                         multiple stoves, stoves must be input as a list of stoves. Defaults to plotting all stoves
+                         in data set.
+
+        Returns:
+              figure : Returns interactive line plots of all requested stove temperature readings over the
+                       duration of the study. To show the figure .show() must be added after calling the function.
+        '''
 
         stove_type = self.check_stove_type(stove)
 
@@ -154,11 +161,17 @@ class Household:
         return fig
 
     def plot_fuel(self, fuel="All"):
-        '''Must add .show() after calling function for plot to be generated'''
+        '''Plotting the fuel weight data over duration of study.
 
-        # If no fuel is specified in the input then all fuels will be plotted
-        # If a fuel is specified it must be input in a string and match a fuel found in the data set
-        # This will output an interactive plot via a html which will only show up by adding .show() after calling it. 
+        Args:
+            fuel (str): If only plotting one fuel weight data fuel must be input as a string. If plotting
+                         multiple fuels, fuels must be input as a list of fuels. Defaults to plotting all fuels
+                         in data set.
+
+        Returns:
+            figure : Returns interactive line plots of all requested fuel weight data over the
+                       duration of the study. To show the figure .show() must be added after calling the function.
+        '''
 
         fuel_type = self.check_fuel_type(fuel)
 
@@ -178,14 +191,22 @@ class Household:
         return fig
 
     def cooking_events(self, stove="All"):
-        ''' Cooking events for each stove'''
+        ''' Determine the number of cooking events on each stove during study.
 
-        # temperature threshold should be the minimum temperature that you would like to consider to be a cooking event
-        # time between events is the minimum time between cooking events
-        # information on an individual stove can be called but it must be in the data set
-        # if no stove is specified information will be retrieved for all stoves
-        # this function will produce a dictionary with stove name and number of cooking events for each stove
-        # this function will also create a self.cooking_events which will log the indices of the cooking event
+        Args:
+            stove (str): If only looking at one stove, stove must be input as a str. If looking at
+                         multiple stoves, stoves must be input as a list of stoves. Defaults all stoves
+                         in data set.
+
+        Returns:
+            cook_events (dict) : A dictionary containing each stove as a key and a list of all indices of determined
+                                cooking events in the data as the values. This is used internally by other functions.
+
+            number_of_cooking_events (dict) : A dictionary containing each stove as a key and the number of cooking
+                                              events on that stove as the values.
+
+        '''
+
 
         if type(stove) != str:
             raise ValueError('Must input fuel type as a string!')
