@@ -120,6 +120,7 @@ class Household:
         self.fuels = fuels
         self.primary_threshold = primary_threshold
         self.time_between_events = time_between_events
+        self.study_duration = self.df_stoves['timestamp'].iloc[-1]-self.df_stoves['timestamp'][0]
 
     def check_stove_type(self, stove):
         '''This will check to see if the stove input is in dataset'''
@@ -259,23 +260,24 @@ class Household:
                         )
         return fig
 
-    def fuel_usage(self, fuel = "All", weight_threshold=0.2):
-        '''Returns the total fuel used during testing period'''
+    def fuel_usage(self, fuel = "All", weight_threshold=0.1):
+        '''Returns the total of each fuel used on each day of the study.'''
 
-        #NEEDS WORK
+        # Should input which stoves you are interested in and the weight threshold
+        # weight threshold is the weight (kg) change that yu would like to ignore
+        # returns a dataframe with all of the selected fuels and how much of each fuel was used each day.
 
         if type(fuel) is not str:
             raise ValueError('Only one fuel may be put in at a time and it must be entered as a string.')
 
         fuel_type = self.check_fuel_type(fuel)
-        
-        # finding where the fuel weight changed
-        fuel_change = {}
-        for f in fuel_type:
-            # finding the little peaks
-            peaks = find_peaks(self.df_stoves[f].values, height=1, distance=1, plateau_size=0)[0]
+
+        def find_significant_changes(peaks):
+            '''This function finds all changes in weight that exceed the threshold. '''
+
             weight = self.df_stoves[f][peaks[0]]
             weight_change = [peaks[0]]
+
             # if the weight difference between these peaks is less than the weight threshold ignore it
             for i in peaks[1:]:
                 new_weight = self.df_stoves[f][i]
@@ -285,32 +287,54 @@ class Household:
                     weight_change.append(i)
                     weight = self.df_stoves[f][i]
 
-            fuel_change.update({f: weight_change})
-        
-        fig = self.plot_fuel(fuel)
+                # to make sure that the lowest value is captured check the final weight value against the previous
+                # recorded weight
+                if i == peaks[-1]:
+                    last_idx = len(self.df_stoves[f])-1
+                    last_weight = self.df_stoves[f][last_idx]
+                    if last_weight < weight:
+                        weight_change.append(last_idx)
+            return weight_change
+
+        def daily_fuel_use(fuel, weight_changes):
+            '''Determines How much of a fuel was used in each day of the study.'''
+
+            daily_fuel_usage = {}
+            day = 1
+            study_began = self.df_stoves['timestamp'][0]
+            study_duration = self.study_duration.days
+            initial_weight = self.df_stoves[fuel][weight_changes[0]]
+            new_weight = 0
+            weight_diff = 0
+
+            for i in weight_changes:
+                if (self.df_stoves['timestamp'][i]-study_began).days == day-1:
+                    new_weight = self.df_stoves[fuel][i]
+                    weight_diff = initial_weight - new_weight
+                    daily_fuel_usage.update({day: weight_diff})
+                else:
+                    day += 1
+                    weight_diff = new_weight - self.df_stoves[fuel][i]
+                    daily_fuel_usage.update({day: weight_diff})
+
+            if len(daily_fuel_usage) != study_duration:
+                for i in range(study_duration-1):
+                    day = i+2
+                    if day not in daily_fuel_usage:
+                        mins = 0
+                        daily_fuel_usage.update({day: mins})
+
+            return daily_fuel_usage
+
+        fuel_change = []
 
         for f in fuel_type:
-            fig.add_trace(
-                go.Scatter(x=self.df_stoves['timestamp'][fuel_change[f]],
-                           y=self.df_stoves[f][fuel_change[f]],
-                           mode='markers',
-                           name=f + ' fuel_change'
-                           )
-                        )
-        """
-        fuel_usage = {}
-        for i, fuel in enumerate(fuel_type):
-            data = self.df_stoves[fuel]
-            initial_weight = 0
-            fuel_change = []
-            for point in data:
-                if abs(point-initial_weight) > weight_threshold:
-                    initial_weight = point
-                    fuel_change.append(point)
+            peaks = find_peaks(self.df_stoves[f].values, height=1, distance=1)[0]
+            weight_changes = find_significant_changes(peaks)
+            daily_usage = daily_fuel_use(f, weight_changes)
+            fuel_change.append(daily_usage)
 
-            total_usage = fuel_change[0]-fuel_change[-1]
-            fuel_usage.update({fuel: total_usage})"""
-        return fig.show()
+        return pd.DataFrame(fuel_change, index=fuel_type)
 
     def cooking_duration(self, stove="All"):
         '''This will return a data frame with the number of cooking minutes for each day for each stove.'''
@@ -354,7 +378,7 @@ class Household:
 
             day = 0
             daily_cooking = {}
-            study_duration = (self.df_stoves['timestamp'].iloc[-1]-self.df_stoves['timestamp'][0]).days
+            study_duration = self.study_duration.days
             study_began = self.df_stoves['timestamp'][0]
             mins = 0
 
@@ -420,4 +444,5 @@ if __name__ == "__main__":
     # print(x.cooking_events())
     #x.plot_cooking_events().show()
     #print(x.cooking_duration())
-    x.fuel_usage()
+    print(x.fuel_usage())
+
