@@ -5,12 +5,34 @@ from scipy.signal import find_peaks
 
 class Household:
 
-    def __init__(self, dataframe, stoves, fuels, primary_threshold=15,  time_between_events=30):
-        '''When called this class will verify that the input arguments are in the correct formats and set self values'''
+    def __init__(self, dataframe, stoves, fuels, temp_threshold=15,  time_between_events=30):
+        '''When called this class will verify that the input arguments are in the correct formats and set self values
 
-        # First it will check that the dataframe is a dataframe and that the stoves and fuels are  in lists
-        # It will then check to make sure that the stoves and fuels fed in are actually in the dataframe
-        # The list of stoves and fuels should match column headers with the respective data in the dataframe
+        Args:
+            dataframe (object): A dataframe containing sensor readings with timestamps formatted as datetime and column
+                                headers that include only the name of the stove or fuel that is being measured.
+
+            stoves (list): Stoves in the study (these should match the names of the column headers for the
+                           stove information in the dataframe exactly).
+
+            fuels (list): Fuels in the study (these should match the names of the column headers for the
+                          fuel information in the dataframe exactly).
+
+            temp_threshold (int): A temperature threshold (degrees) for which all cooking events are identified.
+                                  This value should be greater than or equal to zero.
+
+            time_between_events (int): The time threshold (minutes) that will mark the minimum time between cooking
+                                       events. This value should be greater than or equal to zero.
+
+        Returns:
+            df_stoves : Input dataframe
+            stoves : Input stoves
+            fuels : Input fuels
+            temp_threshold: Input temperature threshold
+            time_between_events: Input time between cooking events
+            study_duration: The duration of the study in datetime format
+
+        '''
 
         if isinstance(dataframe, pd.DataFrame):
             pass
@@ -22,8 +44,10 @@ class Household:
             raise ValueError('Must put in a list of fuel types!')
         if type(time_between_events) != int or time_between_events < 0:
             raise ValueError("The time between events must be a positive integer!")
-        if type(primary_threshold) != int or primary_threshold < 0:
-            raise ValueError("The primary threshold must be a positive integer!")
+        if type(temp_threshold
+                ) != int or temp_threshold\
+                < 0:
+            raise ValueError("The temperature threshold must be a positive integer!")
 
         contents = dataframe.columns.values
         for s in stoves:
@@ -36,41 +60,72 @@ class Household:
         self.df_stoves = dataframe
         self.stoves = stoves
         self.fuels = fuels
-        self.primary_threshold = primary_threshold
+        self.temp_threshold = temp_threshold
         self.time_between_events = time_between_events
         self.study_duration = self.df_stoves['timestamp'].iloc[-1]-self.df_stoves['timestamp'][0]
 
     def check_stove_type(self, stove="All"):
-        '''This will check to see if the stove input is in dataset'''
+        '''Check if stove input is in dataset
 
-        if type(stove) != str:
-            raise ValueError('Must input stove type as a string!')
+        Args:
+            stove (string): The name of the stove(s) that is being checked for. If multiple stoves are desired they must
+                            be input as a list of stings.
 
-        stove_type = 0
+        Returns:
+            stove_type (list) : If stove(s) are found in the original list of stoves in the dataframe then it returns
+                                a list of the stoves.
+
+        '''
+        if type(stove) == list:
+            for s in stove:
+                if type(s) != str:
+                    raise ValueError('Must input all stoves as strings!')
+        elif type(stove) != str:
+            raise ValueError('Must input stove type as string!')
+
+        stove_type = []
         if stove == "All":
             stove_type = self.stoves
         else:
-            for s in self.stoves:
-                if stove in s:
-                    stove_type = [s]
-            if stove_type == 0:
+            for s in stove:
+                if s in self.stoves:
+                    stove_type.append(s)
+                else:
+                    raise ValueError(s+' not found in data set.')
+
+            if not stove_type:
                 raise ValueError('Stove not found in data set.')
         return stove_type
 
     def check_fuel_type(self, fuel="All"):
-        '''This will check if fuel input is in dataset'''
+        '''Check if fuel input is in dataset
 
-        if type(fuel) != str:
-            raise ValueError('Must input fuel type as a string!')
+        Args:
+            fuel (string): The name of the stove(s) that is being checked for.
 
-        fuel_type = 0
+        Returns:
+            stove_type (list) : If all stoves are found in the original list of stoves in the dataframe then it returns
+                                a list of the stoves.
+
+        '''
+
+        if type(fuel) == list:
+            for f in fuel:
+                if type(f) != str:
+                    raise ValueError('Must input all fuels as strings!')
+                else:
+                    raise ValueError(f+' not found in data set.')
+        elif type(fuel) != str:
+            raise ValueError('Must input fuel type as string!')
+
+        fuel_type = []
         if fuel == "All":
             fuel_type = self.fuels
         else:
-            for f in self.fuels:
-                if fuel in f:
-                    fuel_type = [f]
-            if fuel_type == 0:
+            for f in fuel:
+                if f in self.fuels:
+                    fuel_type.append(f)
+            if not fuel_type:
                 raise ValueError('Fuel not found in data set.')
         return fuel_type
 
@@ -125,7 +180,7 @@ class Household:
     def cooking_events(self, stove="All"):
         ''' Cooking events for each stove'''
 
-        # primary threshold should be the minimum temperature that you would like to consider to be a cooking event
+        # temperature threshold should be the minimum temperature that you would like to consider to be a cooking event
         # time between events is the minimum time between cooking events
         # information on an individual stove can be called but it must be in the data set
         # if no stove is specified information will be retrieved for all stoves
@@ -141,7 +196,8 @@ class Household:
         cook_events_list = {}
 
         for s in stove_type:
-            peaks = find_peaks(self.df_stoves[s].values, height=self.primary_threshold, distance=self.time_between_events)[0]
+            peaks = find_peaks(self.df_stoves[s].values, height=self.temp_threshold
+                               , distance=self.time_between_events)[0]
             number_of_cooking_events.update({s: len(peaks)})
             cook_events_list.update({s: peaks})
 
@@ -152,10 +208,10 @@ class Household:
     def plot_cooking_events(self, stove="All"):
         '''Must add .show() after calling function for plot to be generated'''
 
-        # The primary threshold must an integer >= 0
+        # The temperature threshold must an integer >= 0
         # The time between cooking events must be an integer >= 0
         # The stove type must be entered as a string and must be in the data set
-        # If the primary threshold and time between events is not specified it will revert back to default value even
+        # If the temperature threshold and time between events is not specified it will revert back to default value even
         # if it was set to different values when calling cooking_events() function.
 
         if type(stove) != str:
@@ -347,5 +403,5 @@ if __name__ == "__main__":
 
     x = Household(df, stoves, fuels)
 
-    print(x.fuel_usage())
+    print(x.check_fuel_type(['firewod', 'lpg']))
 
