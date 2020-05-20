@@ -1,88 +1,6 @@
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 from scipy.signal import find_peaks
-
-
-def reformat_olivier_files(datafile_path):
-    
-    if type(datafile_path) != str:
-        raise ValueError("Must put in file name as a String!")
-
-    def stove_info(dataframe):
-        '''Creating stove data set.'''
-
-        # This function will be called by the init function
-        # The file should be formatted such that there is a Timestamp header in the first column of the data set
-        # which marks the beginning of the sensor data.            
-        # This function will create a new data set beginning at the location of that Timestamp header
-        # It will then assign the first row as headers and re-format the
-        # This function will also call the reformat_dataframe() function to convert the timestamps from strings
-        # to datetime
-        
-        stove_info_start = []
-        for (r, name) in enumerate(dataframe[0]):
-            if name == "Timestamp":
-                stove_info_start = r
-                break
-
-        if type(stove_info_start) is list:
-            raise ImportError("Could not find the beginning of data. Please ensure that there are appropriate "
-                                  "column headers and that the timestamp column is labeled as timestamp.")
-
-        df_stoves = dataframe.iloc[stove_info_start:, :]
-        df_stoves, stoves, fuels = format_columns(df_stoves)
-        df_stoves = df_stoves[1:]
-        df_stoves = df_stoves.reset_index(drop=True) # must reset the index so that cooking events can be plotted
-        df_stoves = reformat_dataframe(df_stoves)
-            
-        return df_stoves, stoves, fuels
-
-    def format_columns(dataframe):
-        '''This function creates the appropriate columns'''
-
-        # first it locates the column headers
-        # it then converts all column headers into lower case
-        # then removes all columns pertaining to usage (info not needed)
-        # pulls out list of stoves and fuels
-        # rename all columns with only their stove or fuel type
-
-        dataframe.columns = dataframe.iloc[0]
-        dataframe.columns = map(str.lower, dataframe.columns)
-
-        stoves = []
-        fuels = []
-
-        for col in dataframe:
-            if 'usage' in col:
-                del dataframe[col]
-            if 'temperature' in col:
-                 stove_name = col.split(' ')[0]
-                 stoves.append(stove_name)
-                 dataframe = dataframe.rename(columns={col: stove_name})
-            if 'fuel' in col:
-                 fuel_type = col.split(' ')[0]
-                 fuels.append(fuel_type)
-                 dataframe = dataframe.rename(columns={col: fuel_type})
-            
-        return dataframe, stoves, fuels
-            
-    def reformat_dataframe(dataframe):
-        ''''reformatting the dataframe'''
-
-        # first all values in the dataframe will be converted from a str to a float
-        # (with the exception of the timestamp col)
-        # then the timestamp will be converted to date time if it is a string
-
-        dataframe = dataframe.apply(lambda x: np.float64(x) if x.name != 'timestamp' else x)
-
-        dataframe['timestamp'] = dataframe['timestamp'].astype('datetime64[ns]')
-
-        return dataframe
-
-    data = pd.read_csv(datafile_path, header=None)
-    df_stoves, stoves, fuels = stove_info(data)
-    return df_stoves, stoves, fuels
 
 
 class Household:
@@ -122,7 +40,7 @@ class Household:
         self.time_between_events = time_between_events
         self.study_duration = self.df_stoves['timestamp'].iloc[-1]-self.df_stoves['timestamp'][0]
 
-    def check_stove_type(self, stove):
+    def check_stove_type(self, stove="All"):
         '''This will check to see if the stove input is in dataset'''
 
         if type(stove) != str:
@@ -139,7 +57,7 @@ class Household:
                 raise ValueError('Stove not found in data set.')
         return stove_type
 
-    def check_fuel_type(self, fuel):
+    def check_fuel_type(self, fuel="All"):
         '''This will check if fuel input is in dataset'''
 
         if type(fuel) != str:
@@ -242,7 +160,6 @@ class Household:
 
         if type(stove) != str:
             raise ValueError('Must input fuel type as a string!')
-
 
         stove_type = self.check_stove_type(stove)
 
@@ -421,28 +338,14 @@ class Household:
         return pd.DataFrame(all_cooking_info, index=stoves)
 
 
-
 if __name__ == "__main__":
 
-    # x = Household('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
+    from olivier_file_convert import reformat_olivier_files as reformat
 
-    # print(x.stove_types())
-    # x.plot_cooking_events('telia')
+    # example file
+    df, stoves, fuels = reformat('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
 
-    #data_1 = Household('./data_files/test_datetime.csv')
-    # print(data_1.cooking_events(primary_threshold= -5, time_between_events= 2, stove = "5"))
-    #print(data_1.fuel_types())
+    x = Household(df, stoves, fuels)
 
-    # print(data_1)
-    #data_1.plot_stove().show()
-    
-    df, stoves, fuels = reformat_olivier_files('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
-    # print(df.columns.values)
-    x = Household(df, stoves, fuels, time_between_events=30)
-    #x.plot_fuel().show()
-    #x.plot_stove().show()
-    # print(x.cooking_events())
-    #x.plot_cooking_events().show()
-    #print(x.cooking_duration())
     print(x.fuel_usage())
 
