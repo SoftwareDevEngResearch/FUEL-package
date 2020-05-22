@@ -5,7 +5,7 @@ from scipy.signal import find_peaks
 
 class Household:
 
-    def __init__(self, dataframe, stoves, fuels, temp_threshold=15,  time_between_events=30, weight_threshold=0.2):
+    def __init__(self, dataframe, stoves, fuels, temp_threshold=15, time_between_events=30, weight_threshold=0.2):
         '''Verifying that the input arguments are in the correct formats and set self values
 
         Args:
@@ -48,25 +48,25 @@ class Household:
             raise ValueError('Must put in a list of fuel types!')
         if type(time_between_events) != int or time_between_events < 0:
             raise ValueError("The time between events must be a positive integer!")
-        if type(temp_threshold
-                ) != int or temp_threshold\
-                < 0:
+        if type(temp_threshold) != int or temp_threshold < 0:
             raise ValueError("The temperature threshold must be a positive integer!")
+        if type(weight_threshold) != float or weight_threshold < 0:
+            raise ValueError("The weight threshold must be a positive number!")
 
         contents = dataframe.columns.values
         for s in stoves:
             if s not in contents:
-                raise ValueError(s+' stove not found in the dataframe.')
+                raise ValueError(s + ' stove not found in the dataframe.')
         for f in fuels:
             if f not in contents:
-                raise ValueError(f+' fuel not found in the dataframe.')
+                raise ValueError(f + ' fuel not found in the dataframe.')
 
-        self.df_stoves = dataframe
-        self.stoves = stoves
-        self.fuels = fuels
+        self.df_stoves = dataframe.applymap(lambda i: i.lower() if type(i) == str else i)
+        self.stoves = [i.lower() for i in stoves]
+        self.fuels = [i.lower() for i in fuels]
         self.temp_threshold = temp_threshold
         self.time_between_events = time_between_events
-        self.study_duration = self.df_stoves['timestamp'].iloc[-1]-self.df_stoves['timestamp'][0]
+        self.study_duration = self.df_stoves['timestamp'].iloc[-1] - self.df_stoves['timestamp'][0]
         self.weight_threshold = weight_threshold
 
     def check_stove_type(self, stove="All"):
@@ -98,7 +98,7 @@ class Household:
                 if s in self.stoves:
                     stove_type.append(s)
                 else:
-                    raise ValueError(s+' not found in data set.')
+                    raise ValueError(s + ' not found in data set.')
 
             if not stove_type:
                 raise ValueError('Stove not found in data set.')
@@ -121,11 +121,13 @@ class Household:
             for f in fuel:
                 if type(f) != str:
                     raise ValueError('Must input all fuels as strings!')
+        elif type(fuel) == str:
+            fuel = [fuel]
         elif type(fuel) != str:
             raise ValueError('Must input fuel type as string!')
 
         fuel_type = []
-        if fuel == "All":
+        if fuel[0] == "All":
             fuel_type = self.fuels
         else:
             for f in fuel:
@@ -194,7 +196,7 @@ class Household:
 
             # to make sure that the lowest value is captured check the final weight value against the previous
             if i == peaks[-1]:
-                last_idx = len(fuel_data)-1
+                last_idx = len(fuel_data) - 1
                 last_weight = fuel_data[last_idx]
                 if last_weight < weight:
                     weight_change.append(last_idx)
@@ -215,31 +217,43 @@ class Household:
         '''
 
         daily_fuel_usage = {}
-        day = 1
+        fuel_info = self.df_stoves[fuel]
+        day = 0
         study_began = self.df_stoves['timestamp'][0]
         study_duration = self.study_duration.days
-        initial_weight = self.df_stoves[fuel][weight_changes[0]]
-        new_weight = 0
+        weight = fuel_info[weight_changes[0]]
 
-        for i in weight_changes:
-            weight = initial_weight
-            if (self.df_stoves['timestamp'][i]-study_began).days == day-1:
-                new_weight = self.df_stoves[fuel][i]
-                weight_diff = initial_weight - new_weight
-                weight = self.df_stoves[fuel][i]
+        for i in weight_changes[1:]:
+            weight_diff = 0
+            day_of_use = (self.df_stoves['timestamp'][i] - study_began).days
 
-                daily_fuel_usage.update({day: weight_diff})
+            if day_of_use == study_duration:
+                new_weight = fuel_info[i]
+                weight_diff += weight - new_weight
+                weight = new_weight
+
+                daily_fuel_usage.update({day_of_use: weight_diff})
+
+            elif day_of_use == day:
+                new_weight = fuel_info[i]
+                weight_diff += weight - new_weight
+                weight = new_weight
+
+                daily_fuel_usage.update({day+1: weight_diff})
             else:
-                day += 1
-                weight_diff = new_weight - self.df_stoves[fuel][i]
-                daily_fuel_usage.update({day: weight_diff})
+                weight_diff = 0
+                day = day_of_use
+                new_weight = fuel_info[i]
+                weight_diff += weight - new_weight
+
+                daily_fuel_usage.update({day+1: weight_diff})
 
         if len(daily_fuel_usage) != study_duration:
-            for i in range(study_duration-1):
-                day = i+2
+            for i in range(study_duration):
+                day = i + 1
                 if day not in daily_fuel_usage:
-                    mins = 0
-                    daily_fuel_usage.update({day: mins})
+                    weight = 0
+                    daily_fuel_usage.update({day: weight})
 
         return daily_fuel_usage
 
@@ -271,7 +285,8 @@ class Household:
             fuel_change.append(daily_usage)
 
         self.weight_changes = fuel_weight_changes
-        return pd.DataFrame(fuel_change, index=fuel_type)
+        fuel_use = pd.DataFrame(fuel_change, index=fuel_type).transpose()
+        return fuel_use.sort_index(ascending=True)
 
     def _find_cooking_durations_idx(self, stove):
         ''' Determine the indices of the start and end of each cooking event (internal function).
@@ -307,9 +322,9 @@ class Household:
                     end_time = i + k
                     break
             if not start_time:
-                raise ValueError('Could not find start time for cooking event on '+stove+' at index: ', i)
+                raise ValueError('Could not find start time for cooking event on ' + stove + ' at index: ', i)
             if not end_time:
-                raise ValueError('Could not find end time for cooking event on '+stove+' at index: ', i)
+                raise ValueError('Could not find end time for cooking event on ' + stove + ' at index: ', i)
 
             cooking_event_list.append((start_time, end_time))
 
@@ -344,15 +359,15 @@ class Household:
                 daily_cooking.update({day: mins})
                 mins = 0
 
-            mins += (end_time-start_time).seconds/60
+            mins += (end_time - start_time).seconds / 60
 
-            if i == len(cooking_durations_list)-1:
+            if i == len(cooking_durations_list) - 1:
                 day += 1
                 daily_cooking.update({day: mins})
 
         if len(daily_cooking) != study_duration:
             for i in range(study_duration):
-                day = i+1
+                day = i + 1
                 if day not in daily_cooking:
                     mins = 0
                     daily_cooking.update({day: mins})
@@ -410,11 +425,11 @@ class Household:
 
         for s in stove_type:
             fig.add_trace(go.Scatter(
-                        x=self.df_stoves['timestamp'],
-                        y=self.df_stoves[s].values,
-                        mode='lines',
-                        name=s.split(' ')[0],
-                        ))
+                x=self.df_stoves['timestamp'],
+                y=self.df_stoves[s].values,
+                mode='lines',
+                name=s.split(' ')[0],
+            ))
 
         if cooking_events:
             self.cooking_events(stove)
@@ -422,12 +437,12 @@ class Household:
 
             for s in stove_type:
                 fig.add_trace(
-                go.Scatter(x=self.df_stoves['timestamp'][events[s]],
-                           y=self.df_stoves[s][events[s]],
-                           mode='markers',
-                           name=s + ' Cooking Events'
-                           )
-                        )
+                    go.Scatter(x=self.df_stoves['timestamp'][events[s]],
+                               y=self.df_stoves[s][events[s]],
+                               mode='markers',
+                               name=s + ' Cooking Events'
+                               )
+                )
         return fig.show()
 
     def plot_fuel(self, fuel="All", fuel_usage=False):
@@ -457,11 +472,11 @@ class Household:
         for f in fuel_type:
             fig.add_trace(
                 go.Scatter(
-                            x=self.df_stoves['timestamp'],
-                            y=self.df_stoves[f].values,
-                            mode='lines',
-                            name=f.split(' ')[0],
-                            ))
+                    x=self.df_stoves['timestamp'],
+                    y=self.df_stoves[f].values,
+                    mode='lines',
+                    name=f.split(' ')[0],
+                ))
 
         if fuel_usage:
             self.fuel_usage(fuel=fuel_type)
@@ -469,17 +484,16 @@ class Household:
 
             for f in fuel_type:
                 fig.add_trace(
-                       go.Scatter(x=self.df_stoves['timestamp'][changes[f]],
-                           y=self.df_stoves[f][changes[f]],
-                           mode='markers',
-                           name=f + ' Weight Change'
-                           )
-                        )
+                    go.Scatter(x=self.df_stoves['timestamp'][changes[f]],
+                               y=self.df_stoves[f][changes[f]],
+                               mode='markers',
+                               name=f + ' Weight Change'
+                               )
+                )
         return fig.show()
 
 
 if __name__ == "__main__":
-
     from olivier_file_convert import reformat_olivier_files as reformat
 
     # example file
@@ -487,14 +501,13 @@ if __name__ == "__main__":
 
     x = Household(df, stoves, fuels)
     print(
-        # x.check_stove_type()
-        # x.check_fuel_type()
+         # x.check_stove_type(),
+        # x.check_fuel_type('lpg')
         # x.cooking_events()
-        # x.fuel_usage()
+        # x.fuel_usage('charcoal')
         # x.cooking_duration()
-          )
+    )
 
     # x.plot_fuel(fuel_usage=True)
     # x.plot_stove(cooking_events=True)
-
-
+#
