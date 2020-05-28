@@ -220,7 +220,7 @@ class Household:
         fuel_info = self.df_stoves[fuel]
         day = 0
         study_began = self.df_stoves['timestamp'][0]
-        study_duration = self.study_duration.days
+        study_duration = round(self.study_duration.total_seconds()/86400) # rounding to the nearest day
         weight = fuel_info[weight_changes[0]]
 
         for i in weight_changes[1:]:
@@ -346,7 +346,7 @@ class Household:
 
         day = 0
         daily_cooking = {}
-        study_duration = self.study_duration.days
+        study_duration = round(self.study_duration.total_seconds()/86400) # rounding to the nearest day
         study_began = self.df_stoves['timestamp'][0]
         mins = 0
 
@@ -395,8 +395,8 @@ class Household:
             daily_cooking = self._daily_cooking_time(cooking_durations_list)
 
             all_cooking_info.append(daily_cooking)
-
-        return pd.DataFrame(all_cooking_info, index=stoves)
+        cooking_times = pd.DataFrame(all_cooking_info, index=stoves).transpose()
+        return cooking_times.sort_index(ascending=True)
 
     def plot_stove(self, stove="All", cooking_events=False):
         '''Plotting the temperature data of stoves over duration of study.
@@ -497,15 +497,17 @@ if __name__ == "__main__":
     from olivier_file_convert import reformat_olivier_files as reformat
 
     # example file
-    df, stoves, fuels = reformat('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
+    df, stoves, fuels = reformat('./data_files/HH_319_2018-08-25_19-27-32_processed_v2.csv')
 
     x = Household(df, stoves, fuels)
     print(
          # x.check_stove_type(),
         # x.check_fuel_type('lpg')
         # x.cooking_events()
-        # x.fuel_usage('charcoal')
+        x.fuel_usage(),
         # x.cooking_duration()
+        # x.df_stoves
+        # x.study_duration.total_seconds()/86400
     )
 
     # x.plot_fuel(fuel_usage=True)
