@@ -25,6 +25,7 @@ def stove_info(dataframe):
                                 "column headers and that the timestamp column is labeled as timestamp.")
 
     df_stoves = dataframe.iloc[stove_info_start:, :]
+    df_stoves = df_stoves.fillna(method='ffill')  # fill any missing values at end of dataframe with previous value
     df_stoves, stoves, fuels = format_columns(df_stoves)
     df_stoves = df_stoves[1:]
     df_stoves = df_stoves.reset_index(drop=True) # must reset the index so that cooking events can be plotted
