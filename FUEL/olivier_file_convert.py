@@ -15,7 +15,10 @@ def stove_info(dataframe):
 
     """
     stove_info_start = []
+    household_id = "no household id"
     for (r, name) in enumerate(dataframe[0]):
+        if name == "household id:":
+            household_id = dataframe[1][r]
         if name == "timestamp":
             stove_info_start = r
             break
@@ -31,7 +34,7 @@ def stove_info(dataframe):
     df_stoves = df_stoves.reset_index(drop=True) # must reset the index so that cooking events can be plotted
     df_stoves = reformat_dataframe(df_stoves)
 
-    return df_stoves, stoves, fuels
+    return df_stoves, stoves, fuels, household_id
 
 
 def format_columns(dataframe):
@@ -105,15 +108,14 @@ def reformat_olivier_files(datafile_path):
 
     # converting the entire dataframe to lower case to make it more universal
     data = data.applymap(lambda s:s.lower() if type(s) == str else s)
-    df_stoves, stoves, fuels = stove_info(data)
 
-    return df_stoves, stoves, fuels
+    df_stoves, stoves, fuels, household_id = stove_info(data)
 
-
+    return df_stoves, stoves, fuels, household_id
 
 
 
 if __name__ == "__main__":
     #example
-    df, stoves, fuels = reformat_olivier_files('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
-    print(df, stoves, fuels)
+    df, stoves, fuels, household_number = reformat_olivier_files('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
+    print(type(household_number))
