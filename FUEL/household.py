@@ -171,53 +171,6 @@ class Household:
 
         self.cook_events = cook_events_list
         return number_of_cooking_events
-    #
-    # def _find_significant_weight_changes(self, fuel, peaks):
-    #     '''Find all significant weight changes (internal function).
-    #
-    #     Args:
-    #         fuel (str) : name of fuel in data set
-    #
-    #         peaks (list): A list of all fuel change indices found in the data set.
-    #
-    #     Returns:
-    #         weight_change (list): A list of all fuel change indices found that resulted in a change of fuel weight
-    #                                    larger than the prescribed threshold (weight_threshold).
-    #              '''
-    #     fuel_data = list(self.df_stoves[fuel])
-    #
-    #     weight = fuel_data[peaks[0]]
-    #     weight_change = [peaks[0]]
-    #
-    #     # if the weight difference between these peaks is less than the weight threshold ignore it
-    #     for i in peaks[1:]:
-    #         new_weight = fuel_data[i]
-    #         weight_before = fuel_data[i-1]
-    #         weight_after = fuel_data[i+1]
-    #         weight_diff = new_weight - weight
-    #
-    #         if abs(weight_diff) < self.weight_threshold:
-    #             pass
-    #
-    #         else:
-    #             # check to make sure it isnt catching random peaks
-    #             if weight_diff > self.weight_threshold:
-    #                 if abs(weight_after-weight_before) < self.weight_threshold or weight_after < weight_before:
-    #                     pass
-    #                 else:
-    #                     weight_change.append(i)
-    #                     weight = fuel_data[i]
-    #             else:
-    #                 weight_change.append(i)
-    #                 weight = fuel_data[i]
-    #
-    #         # to make sure that the lowest value is captured check the final weight value against the previous
-    #         if i == peaks[-1]:
-    #             last_idx = len(fuel_data) - 1
-    #             last_weight = fuel_data[last_idx]
-    #             if last_weight < weight:
-    #                 weight_change.append(last_idx)
-    #     return weight_change
 
     def _find_weight_changes(self, fuel):
         '''Find all significant weight changes (internal function).
@@ -236,7 +189,7 @@ class Household:
         weight_changes = []
 
         for i, current_weight in enumerate(fuel_data[1:]):
-            if fuel == "lpg" and current_weight < 2: # should change this to be more versatile later
+            if fuel == "lpg" and current_weight < 5: # should change this to be more versatile later
                 pass
             else:
                 if i == len(fuel_data)-2:
@@ -299,6 +252,8 @@ class Household:
                     # fuel used on final day of study
                     if weight - new_weight < self.weight_threshold:
                         weight_diff = 0
+                    if day_of_use in daily_fuel_usage:
+                        weight_diff += weight - new_weight
                     else:
                         weight_diff = weight - new_weight
                     daily_fuel_usage.update({day_of_use: weight_diff})
@@ -567,32 +522,32 @@ class Household:
 if __name__ == "__main__":
     from olivier_file_convert import reformat_olivier_files as reformat
 
-    filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv', # look at the lpg
-             'HH_44_2018-08-17_13-49-22_processed_v2.csv',
-             'HH_141_2018-08-17_17-50-31_processed_v2.csv', #lpg is off here too
-             'HH_318_2018-08-25_18-35-07_processed_v2.csv',
-             'HH_319_2018-08-25_19-27-32_processed_v2.csv',
-             'HH_326_2018-08-25_17-52-16_processed_v2.csv',
-             'HH_345_2018-08-25_15-52-57_processed_v2.csv',
-             'HH_371_2018-08-17_15-31-52_processed_v2.csv'
-             ]
+    # filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv', # look at the lpg
+    #          'HH_44_2018-08-17_13-49-22_processed_v2.csv',
+    #          'HH_141_2018-08-17_17-50-31_processed_v2.csv', #lpg is off here too
+    #          'HH_318_2018-08-25_18-35-07_processed_v2.csv',
+    #          'HH_319_2018-08-25_19-27-32_processed_v2.csv',
+    #          'HH_326_2018-08-25_17-52-16_processed_v2.csv',
+    #          'HH_345_2018-08-25_15-52-57_processed_v2.csv',
+    #          'HH_371_2018-08-17_15-31-52_processed_v2.csv'
+    #          ]
+    #
+    # for file in filepaths:
+    #     df, stoves, fuels, hh_id = reformat('./data_files/' + file)
+    #     x = Household(df, stoves, fuels, hh_id)
+    #     print(file, '\n',
+    #         # x.check_stove_type(),
+    #         # x.check_fuel_type('lpg')
+    #         # x.cooking_events()
+    #         x.fuel_usage() #, '\n',
+    #         # x.cooking_duration()
+    #         # x.df_stoves
+    #         # x.study_duration.total_seconds()/86400
+    #     )
+    #     x.plot_fuel(fuel_usage=True)
 
-    for file in filepaths:
-        df, stoves, fuels, hh_id = reformat('./data_files/' + file)
-        x = Household(df, stoves, fuels, hh_id)
-        print(file, '\n',
-            # x.check_stove_type(),
-            # x.check_fuel_type('lpg')
-            # x.cooking_events()
-            x.fuel_usage() #, '\n',
-            # x.cooking_duration()
-            # x.df_stoves
-            # x.study_duration.total_seconds()/86400
-        )
-        x.plot_fuel(fuel_usage=True)
-
-    # df, stoves, fuels, hh_id = reformat('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
-    # x = Household(df, stoves, fuels, hh_id)
-    # print(x.fuel_usage('firewood'))
-    # x.plot_fuel(fuel_usage=True)
+    df, stoves, fuels, hh_id = reformat('./data_files/HH_141_2018-08-17_17-50-31_processed_v2.csv')
+    x = Household(df, stoves, fuels, hh_id)
+    print(x.fuel_usage("lpg"))
+    x.plot_fuel(fuel_usage=True)
 
