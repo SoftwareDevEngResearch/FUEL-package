@@ -5,7 +5,7 @@ from scipy.signal import find_peaks
 
 class Household:
 
-    def __init__(self, dataframe, stoves, fuels, hh_id, temp_threshold=15, time_between_events=30, weight_threshold=0.2):
+    def __init__(self, dataframe, stoves, fuels, hh_id, temp_threshold=15, time_between_events=60, min_cooktime=15, weight_threshold=0.2):
         '''Verifying that the input arguments are in the correct formats and set self values
 
         Args:
@@ -24,7 +24,9 @@ class Household:
                                   This value should be greater than or equal to zero. Defaults to 15.
 
             time_between_events (int): The time threshold (minutes) that will mark the minimum time between cooking
-                                       events. This value should be greater than or equal to zero. Defaults to 30 mins.
+                                       events. This value should be greater than or equal to zero. Defaults to 60 mins.
+
+            min_cook_time (int): The minimum cooking time (mins). Default value of 15 mins.
 
             weight_threshold (float): The weight change (kg) that should be ignored. All weight changes above this
                                       value will be marked. Defaults to 0.2 kg.
@@ -36,8 +38,9 @@ class Household:
             hh_id : Input Household ID
             temp_threshold: Input temperature threshold
             time_between_events: Input time between cooking events
+            min_cook_time : Input min cooking time
             study_duration: The duration of the study in datetime format
-            self.weight_threshold: Input weight threshold
+            weight_threshold: Input weight threshold
 
         '''
 
@@ -49,10 +52,14 @@ class Household:
             raise ValueError('Must put in a list of stove types!')
         if type(fuels) != list:
             raise ValueError('Must put in a list of fuel types!')
+        if type(hh_id) != str:
+            raise ValueError('Must put in household ID as a string!')
         if type(time_between_events) != int or time_between_events < 0:
             raise ValueError("The time between events must be a positive integer!")
         if type(temp_threshold) != int or temp_threshold < 0:
             raise ValueError("The temperature threshold must be a positive integer!")
+        if type(min_cooktime) != int or min_cooktime < 0:
+            raise ValueError("The minimum cooking time must be a positive integer!")
         if type(weight_threshold) != float or weight_threshold < 0:
             raise ValueError("The weight threshold must be a positive number!")
 
@@ -70,6 +77,7 @@ class Household:
         self.hh_id = hh_id
         self.temp_threshold = temp_threshold
         self.time_between_events = time_between_events
+        self.min_cooktime = min_cooktime
         self.study_duration = self.df_stoves['timestamp'].iloc[-1] - self.df_stoves['timestamp'][0]
         self.weight_threshold = weight_threshold
 
@@ -90,20 +98,18 @@ class Household:
             for s in stove:
                 if type(s) != str:
                     raise ValueError('Must input all stoves as strings!')
+        elif type(stove) == str:
+            stove = [stove]
         elif type(stove) != str:
             raise ValueError('Must input stove type as string!')
 
         stove_type = []
-
-        if stove == "All":
+        if stove[0] == "All":
             stove_type = self.stoves
         else:
             for s in stove:
                 if s in self.stoves:
                     stove_type.append(s)
-                else:
-                    raise ValueError(s + ' not found in data set.')
-
             if not stove_type:
                 raise ValueError('Stove not found in data set.')
         return stove_type
@@ -166,6 +172,7 @@ class Household:
         for s in stove_type:
             peaks = find_peaks(self.df_stoves[s].values, height=self.temp_threshold
                                , distance=self.time_between_events)[0]
+
             number_of_cooking_events.update({s: len(peaks)})
             cook_events_list.update({s: peaks})
 
@@ -351,7 +358,11 @@ class Household:
             if not end_time:
                 raise ValueError('Could not find end time for cooking event on ' + stove + ' at index: ', i)
 
-            cooking_event_list.append((start_time, end_time))
+            cooking_duration = ((self.df_stoves['timestamp'][end_time]-self.df_stoves['timestamp'][start_time]).total_seconds())/60
+            if cooking_duration < float(self.min_cooktime):
+                pass
+            else:
+                cooking_event_list.append((start_time, end_time))
 
         return cooking_event_list
 
@@ -380,8 +391,7 @@ class Household:
             start_time = self.df_stoves['timestamp'][idx[0]]
             days_since_start = (end_time - study_began).days
             if days_since_start != day:
-                day += 1
-                daily_cooking.update({day: mins})
+                daily_cooking.update({day+1: mins})
                 mins = 0
 
             mins += (end_time - start_time).seconds / 60
@@ -522,9 +532,9 @@ class Household:
 if __name__ == "__main__":
     from olivier_file_convert import reformat_olivier_files as reformat
 
-    # filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv', # look at the lpg
+    # filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
     #          'HH_44_2018-08-17_13-49-22_processed_v2.csv',
-    #          'HH_141_2018-08-17_17-50-31_processed_v2.csv', #lpg is off here too
+    #          'HH_141_2018-08-17_17-50-31_processed_v2.csv',
     #          'HH_318_2018-08-25_18-35-07_processed_v2.csv',
     #          'HH_319_2018-08-25_19-27-32_processed_v2.csv',
     #          'HH_326_2018-08-25_17-52-16_processed_v2.csv',
@@ -538,16 +548,18 @@ if __name__ == "__main__":
     #     print(file, '\n',
     #         # x.check_stove_type(),
     #         # x.check_fuel_type('lpg')
-    #         # x.cooking_events()
-    #         x.fuel_usage() #, '\n',
-    #         # x.cooking_duration()
+    #         # x.cooking_events(),
+    #         # x.fuel_usage() #, '\n',
+    #         x.cooking_duration()
     #         # x.df_stoves
     #         # x.study_duration.total_seconds()/86400
     #     )
-    #     x.plot_fuel(fuel_usage=True)
+    #     # x.plot_fuel(fuel_usage=True)
+    #     x.plot_stove(cooking_events=True)
 
-    df, stoves, fuels, hh_id = reformat('./data_files/HH_141_2018-08-17_17-50-31_processed_v2.csv')
+    df, stoves, fuels, hh_id = reformat('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
     x = Household(df, stoves, fuels, hh_id)
-    print(x.fuel_usage("lpg"))
-    x.plot_fuel(fuel_usage=True)
+    print(x.cooking_duration('telia'))
+    # x.plot_fuel(fuel_usage=True)
+    x.plot_stove(cooking_events=True)
 
