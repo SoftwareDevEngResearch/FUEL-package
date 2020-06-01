@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 
+
 def stove_info(dataframe):
     """Creating stove dataframe.
 
@@ -61,12 +62,15 @@ def format_columns(dataframe):
             del dataframe[col]
         if 'temperature' in col:
             stove_name = col.split(' ')[0]
+            if stove_name == '3pierres' or stove_name == '3':
+                stove_name = '3stone'
             stoves.append(stove_name)
             dataframe = dataframe.rename(columns={col: stove_name})
         if 'fuel' in col:
             fuel_type = col.split(' ')[0]
             fuels.append(fuel_type)
             dataframe = dataframe.rename(columns={col: fuel_type})
+
 
     return dataframe, stoves, fuels
 
@@ -86,6 +90,25 @@ def reformat_dataframe(dataframe):
     dataframe['timestamp'] = dataframe['timestamp'].astype('datetime64[ns]')
 
     return dataframe
+
+def fuel_association(fuels, stoves):
+    # stoves organized by fuel type
+    fuels_n_stoves = {'firewood': ['3stone', 'om30'],
+                      'charcoal': ['malgchch'],
+                      'lpg': ['telia']}
+
+    household_contains = {}
+    for f in fuels:
+        if f in fuels_n_stoves:
+            for s in stoves:
+                if s in fuels_n_stoves[f]:
+                    if f in household_contains:
+                        household_contains[f].append(s)
+                    else:
+                        household_contains.update({f:[s]})
+        else:
+            raise ValueError(f + "not found")
+    return household_contains
 
 
 def reformat_olivier_files(datafile_path):
@@ -114,8 +137,7 @@ def reformat_olivier_files(datafile_path):
     return df_stoves, stoves, fuels, household_id
 
 
-
 if __name__ == "__main__":
     #example
     df, stoves, fuels, household_number = reformat_olivier_files('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
-    print(type(household_number))
+    print(stoves)
