@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 from scipy.signal import find_peaks
+import random
 
 
 class Household:
@@ -425,7 +426,7 @@ class Household:
         Returns:
                 daily_cooking (dict): A dictionary containing stove cooking information for each day of study. Keys
                                       represent the day of the study, values are the total time(min) cooking recorded
-                                      for that day of the study.
+                                      for that day of the study. Day 0 represents the total amount of cooking time.
 
         '''
 
@@ -433,30 +434,39 @@ class Household:
         daily_cooking = {}
         study_duration = round(self.study_duration.total_seconds()/86400) # rounding to the nearest day
         study_began = self.df_stoves['timestamp'][0]
-        mins = 0
+        daily_mins = 0
+        total_mins= 0
 
         for i, idx in enumerate(cooking_durations_list):
             end_time = self.df_stoves['timestamp'][idx[2]]
             start_time = self.df_stoves['timestamp'][idx[1]]
             days_since_start = (end_time - study_began).days
+            total_mins += (end_time - start_time).seconds / 60
 
             if days_since_start != day:
-                daily_cooking.update({day+1: mins})
-                if i == len(cooking_durations_list) - 1:
-                    mins = (end_time - start_time).seconds / 60
-                    daily_cooking.update({days_since_start: mins})
-                    break
+                daily_cooking.update({day+1: daily_mins})
                 day = days_since_start
-                mins = 0
+                daily_mins = (end_time - start_time).seconds / 60
+                if i == len(cooking_durations_list) - 1:
+                    if days_since_start == study_duration:
+                        day = days_since_start
+                    else:
+                        day += 1
+                    daily_cooking.update({day: daily_mins})
+                    break
 
-            mins += (end_time - start_time).seconds / 60
+            # daily_mins += (end_time - start_time).seconds / 60
 
-            if i == len(cooking_durations_list) - 1:
-                if days_since_start in daily_cooking:
+            elif i == len(cooking_durations_list) - 1:
+                daily_mins += (end_time - start_time).seconds / 60
+                if days_since_start == study_duration:
                     day = days_since_start
                 else:
                     day += 1
-                daily_cooking.update({day: mins})
+                daily_cooking.update({day: daily_mins})
+
+            else:
+                daily_mins += (end_time - start_time).seconds / 60
 
         if len(daily_cooking) != study_duration:
             for i in range(study_duration):
@@ -464,6 +474,8 @@ class Household:
                 if day not in daily_cooking:
                     mins = 0
                     daily_cooking.update({day: mins})
+
+        daily_cooking.update({0: total_mins})
 
         return daily_cooking
 
@@ -488,7 +500,9 @@ class Household:
             daily_cooking = self._daily_cooking_time(stoves[s])
 
             all_cooking_info.append(daily_cooking)
+
         cooking_times = pd.DataFrame(all_cooking_info, index=stoves).transpose()
+
         return cooking_times.sort_index(ascending=True)
 
     def plot_stove(self, stove="All", cooking_events=False):
@@ -510,6 +524,13 @@ class Household:
 
         stove_type = self.check_stove_type(stove)
 
+
+        colors = ["blue", "red", 'orange', 'green']
+
+        stove_colors = {}
+        for i, s in enumerate(stove_type):
+            stove_colors.update({s: colors[i]})
+
         fig = go.Figure()
 
         fig.update_yaxes(title_text="Temp")
@@ -521,6 +542,9 @@ class Household:
                 x=self.df_stoves['timestamp'],
                 y=self.df_stoves[s].values,
                 mode='lines',
+                marker=dict(
+                        color=stove_colors[s],
+                        size=5),
                 name=s.split(' ')[0],
             ))
 
@@ -535,11 +559,33 @@ class Household:
                     peak.append(point[0])
                     start.append(point[1])
                     end.append(point[2])
+                    start_times = list(self.df_stoves['timestamp'][start])
+                    end_times = list(self.df_stoves['timestamp'][end])
+                    shapes = {}
+                    for i, value in enumerate(start_times):
+                        shapes['Event' + str(i+1)] = go.layout.Shape(
+                                            type='rect',
+                                            xref="x",
+                                            yref="paper",
+                                            x0=start_times[i],
+                                            y0=0,
+                                            x1=end_times[i],
+                                            y1=1,
+                                            fillcolor=stove_colors[s],
+                                            opacity=0.2,
+                                            layer="below"
+                                            )
+                    duration_shapes = list(shapes.values())
+                    fig.update_layout(shapes=duration_shapes)
                 fig.add_trace(
                             go.Scatter(x=self.df_stoves['timestamp'][peak],
                                        y=self.df_stoves[s][peak],
                                        mode='markers',
-                                       name=s + ' Cooking Events'
+                                       marker=dict(
+                                                color=stove_colors[s],
+                                                size=5),
+                                       name=s + ' Cooking Events',
+
                                        )
                         )
                 # fig.add_trace(
@@ -556,23 +602,6 @@ class Household:
                 #                        name=s + ' Cooking end'
                 #                        )
                 #         )
-                start_times = list(self.df_stoves['timestamp'][start])
-                end_times = list(self.df_stoves['timestamp'][end])
-                shapes = {}
-                for i, value in enumerate(start_times):
-                    shapes['Event' + str(i+1)] = go.layout.Shape(
-                                        type='rect',
-                                        xref="x",
-                                        yref="paper",
-                                        x0=start_times[i],
-                                        y0=0,
-                                        x1=end_times[i],
-                                        y1=1,
-                                        fillcolor="LightSalmon",
-                                        opacity=0.3,
-                                        layer="below")
-                duration_shapes = list(shapes.values())
-                fig.update_layout(shapes=duration_shapes)
 
         return fig.show()
 
@@ -627,34 +656,34 @@ class Household:
 if __name__ == "__main__":
     from olivier_file_convert import reformat_olivier_files as reformat
 
-    # filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
-    #          'HH_44_2018-08-17_13-49-22_processed_v2.csv',
-    #          'HH_141_2018-08-17_17-50-31_processed_v2.csv',
-    #          'HH_318_2018-08-25_18-35-07_processed_v2.csv',
-    #          'HH_319_2018-08-25_19-27-32_processed_v2.csv',
-    #          'HH_326_2018-08-25_17-52-16_processed_v2.csv',
-    #          'HH_345_2018-08-25_15-52-57_processed_v2.csv',
-    #          'HH_371_2018-08-17_15-31-52_processed_v2.csv'
-    #          ]
-    #
-    # for file in filepaths:
-    #     df, stoves, fuels, hh_id = reformat('./data_files/' + file)
-    #     x = Household(df, stoves, fuels, hh_id)
-    #     print(file, '\n',
-    #         # x.check_stove_type(),
-    #         # x.check_fuel_type('lpg')
-    #         # x.cooking_events(),
-    #         # x.fuel_usage() #, '\n',
-    #         x.cooking_duration()
-    #         # x.df_stoves
-    #         # x.study_duration.total_seconds()/86400
-    #     )
-    #     # x.plot_fuel(fuel_usage=True)
-    #     x.plot_stove(cooking_events=True)
+    filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
+             'HH_44_2018-08-17_13-49-22_processed_v2.csv',
+             'HH_141_2018-08-17_17-50-31_processed_v2.csv',
+             'HH_318_2018-08-25_18-35-07_processed_v2.csv',
+             'HH_319_2018-08-25_19-27-32_processed_v2.csv',
+             'HH_326_2018-08-25_17-52-16_processed_v2.csv',
+             'HH_345_2018-08-25_15-52-57_processed_v2.csv',
+             'HH_371_2018-08-17_15-31-52_processed_v2.csv'
+             ]
 
-    df, stoves, fuels, hh_id = reformat('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
-    x = Household(df, stoves, fuels, hh_id, time_between_events=30)
-    # print(x.cooking_duration('telia'))
+    for file in filepaths:
+        df, stoves, fuels, hh_id = reformat('./data_files/' + file)
+        x = Household(df, stoves, fuels, hh_id)
+        print(file, '\n',
+            # x.check_stove_type(),
+            # x.check_fuel_type('lpg')
+            # x.cooking_events(),
+            # x.fuel_usage(), '\n',
+            x.cooking_duration()
+            # x.df_stoves
+            # x.study_duration.total_seconds()/86400
+        )
+        # x.plot_fuel(fuel_usage=True)
+        # x.plot_stove()
+
+    # df, stoves, fuels, hh_id = reformat('./data_files/HH_44_2018-08-17_13-49-22_processed_v2.csv')
+    # x = Household(df, stoves, fuels, hh_id, time_between_events=30)
+    # print(x.cooking_duration(stove="telia"))
     # x.plot_fuel(fuel_usage=True)
-    x.plot_stove(stove="telia", cooking_events=True)
+    # x.plot_stove(stove="telia", cooking_events=True)
 
