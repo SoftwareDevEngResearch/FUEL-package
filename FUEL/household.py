@@ -1,5 +1,6 @@
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from scipy.signal import find_peaks
 import random
 
@@ -80,6 +81,7 @@ class Household:
         self.time_between_events = time_between_events
         self.min_cooktime = min_cooktime
         self.study_duration = self.df_stoves['timestamp'].iloc[-1] - self.df_stoves['timestamp'][0]
+        self.study_days = round(self.study_duration.total_seconds()/86400) # rounding to the nearest day
         self.weight_threshold = weight_threshold
 
     def check_stove_type(self, stove="All"):
@@ -148,86 +150,6 @@ class Household:
                 raise ValueError('Fuel not found in data set.')
         return fuel_type
 
-    def cooking_events(self, stove="All"):
-        ''' Determine the number of cooking events on each stove during study.
-
-        Args:
-            stove (str): If only looking at one stove, stove must be input as a str. If looking at
-                         multiple stoves, stoves must be input as a list of stoves. Defaults all stoves
-                         in data set.
-
-        Returns:
-            cook_events (dict) : A dictionary containing each stove as a key and a list of lists containing cooking
-                                event information [cooking event, start of cooking, end of cooking] as the values
-
-          '''
-
-        stove_type = self.check_stove_type(stove)
-        cook_events = {}
-
-        for s in stove_type:
-            stove_temps = self.df_stoves[s]
-            possible_cooking_events = find_peaks(stove_temps, height=self.temp_threshold
-                               , distance=self.time_between_events)[0]
-            events = []
-
-            for i in possible_cooking_events:
-                before_event = stove_temps[:i]
-                after_event = stove_temps[i:]
-                start_time = False
-                end_time = False
-
-                count = 0
-                for j, temp in enumerate(before_event[::-1]):
-                    if j == len(before_event)-2:
-                        start_time = 0
-                        count = 0
-                        break
-                    elif temp < self.temp_threshold:
-                        count += 1
-                        if count == 5:
-                            # want temp to be below threshold for more than 5 mins
-                            start_time = i - j
-                            count = 0
-                            break
-                    else:
-                        count = 0
-
-                for k, t in enumerate(after_event):
-                    if k == len(after_event)-2:
-                        end_time = len(stove_temps)-1
-                        break
-                    elif t < self.temp_threshold:
-                        count += 1
-                        if count == 5:
-                            # want temp to be below threshold for more than 5 mins
-                            end_time = i + k
-                            break
-                    else:
-                        count = 0
-
-                if not start_time:
-                    raise ValueError('Could not find start time for cooking event on ' + stove + ' at index: ', i)
-                if not end_time:
-                    raise ValueError('Could not find end time for cooking event on ' + stove + ' at index: ', i)
-
-                # check to make sure cooking times dont overlap
-                if events:
-                    previous_event = events[-1]
-                    # if two event have the same start time they are the same event (dont count it)
-                    if previous_event[1] == start_time:
-                        pass
-                    # if the end time of the previous event is after the beginning of this one shift the start time
-                    if previous_event[2] > start_time:
-                        start_time = previous_event[2] + 1
-                    else:
-                        # events will be list of indices [event, start time, end time]
-                        events.append([i, start_time, end_time])
-                else:
-                    # events will be list of indices [event, start time, end time]
-                    events.append([i, start_time, end_time])
-            cook_events.update({s: events})
-        return cook_events
 
     def _find_weight_changes(self, fuel):
         '''Find all significant weight changes (internal function).
@@ -290,25 +212,26 @@ class Household:
         fuel_info = self.df_stoves[fuel]
         day = 0
         study_began = self.df_stoves['timestamp'][0]
-        study_duration = round(self.study_duration.total_seconds()/86400) # rounding to the nearest day
+        # study_duration = self.study_days
         weight = fuel_info[weight_changes[0]]
         weight_diff = 0
+        total_fuel_usage = 0
         for i in weight_changes[1:]:
 
             day_of_use = (self.df_stoves['timestamp'][i] - study_began).days
 
             new_weight = fuel_info[i]
 
-            if weight - new_weight < 0:
+            if weight - new_weight < self.weight_threshold:
                 # indicates an adding of fuel not a fuel usage
                 pass
 
             else:
-
-                if day_of_use == study_duration:
-                    # fuel used on final day of study
-                    if weight - new_weight < self.weight_threshold:
-                        weight_diff = 0
+                total_fuel_usage += weight - new_weight
+                if day_of_use == self.study_days:
+                    # # fuel used on final day of study
+                    # if weight - new_weight < self.weight_threshold:
+                    #     weight_diff = 0
                     if day_of_use in daily_fuel_usage:
                         weight_diff += weight - new_weight
                     else:
@@ -327,12 +250,14 @@ class Household:
 
             weight = new_weight
 
-        if len(daily_fuel_usage) != study_duration:
-            for i in range(study_duration):
+        if len(daily_fuel_usage) != self.study_days:
+            for i in range(self.study_days):
                 day = i + 1
                 if day not in daily_fuel_usage:
                     weight = 0
                     daily_fuel_usage.update({day: weight})
+
+        daily_fuel_usage.update({0: total_fuel_usage})
 
         return daily_fuel_usage
 
@@ -416,12 +341,94 @@ class Household:
 
         return cooking_event_list
 
-    def _daily_cooking_time(self, cooking_durations_list):
+
+    def cooking_events(self, stove="All"):
+        ''' Determine the number of cooking events on each stove during study.
+
+        Args:
+            stove (str): If only looking at one stove, stove must be input as a str. If looking at
+                         multiple stoves, stoves must be input as a list of stoves. Defaults all stoves
+                         in data set.
+
+        Returns:
+            cook_events (dict) : A dictionary containing each stove as a key and a list of lists containing cooking
+                                event information [cooking event, start of cooking, end of cooking] as the values
+
+          '''
+
+        stove_type = self.check_stove_type(stove)
+        cook_events = {}
+
+        for s in stove_type:
+            stove_temps = self.df_stoves[s]
+            possible_cooking_events = find_peaks(stove_temps, height=self.temp_threshold
+                               , distance=self.time_between_events)[0]
+            events = []
+
+            for i in possible_cooking_events:
+                before_event = stove_temps[:i]
+                after_event = stove_temps[i:]
+                start_time = False
+                end_time = False
+
+                count = 0
+                for j, temp in enumerate(before_event[::-1]):
+                    if j == len(before_event)-2:
+                        start_time = 0
+                        count = 0
+                        break
+                    elif temp < self.temp_threshold:
+                        count += 1
+                        if count == 5:
+                            # want temp to be below threshold for more than 5 mins
+                            start_time = i - j
+                            count = 0
+                            break
+                    else:
+                        count = 0
+
+                for k, t in enumerate(after_event):
+                    if k == len(after_event)-2:
+                        end_time = len(stove_temps)-1
+                        break
+                    elif t < self.temp_threshold:
+                        count += 1
+                        if count == 5:
+                            # want temp to be below threshold for more than 5 mins
+                            end_time = i + k
+                            break
+                    else:
+                        count = 0
+
+                if not start_time:
+                    raise ValueError('Could not find start time for cooking event on ' + stove + ' at index: ', i)
+                if not end_time:
+                    raise ValueError('Could not find end time for cooking event on ' + stove + ' at index: ', i)
+
+                # check to make sure cooking times dont overlap
+                if events:
+                    previous_event = events[-1]
+                    # if two event have the same start time they are the same event (dont count it)
+                    if previous_event[1] == start_time:
+                        pass
+                    # if the end time of the previous event is after the beginning of this one shift the start time
+                    if previous_event[2] > start_time:
+                        start_time = previous_event[2] + 1
+                    else:
+                        # events will be list of indices [event, start time, end time]
+                        events.append([i, start_time, end_time])
+                else:
+                    # events will be list of indices [event, start time, end time]
+                    events.append([i, start_time, end_time])
+            cook_events.update({s: events})
+        return cook_events
+
+    def _daily_cooking_time(self, cooking_events):
         '''Determine the total time spent cooking on a stove (mins) for each day of the study (internal function).
 
         Args:
-            cooking_duration_list (list): A list of tuples containing the indices of the beginning and end of a
-                                          cooking event [(cooking begins, cooking ends)].
+            cooking_events(list): a list of lists containing cooking event information [cooking event, start
+                                          of cooking, end of cooking] as the values
 
         Returns:
                 daily_cooking (dict): A dictionary containing stove cooking information for each day of study. Keys
@@ -432,12 +439,11 @@ class Household:
 
         day = 0
         daily_cooking = {}
-        study_duration = round(self.study_duration.total_seconds()/86400) # rounding to the nearest day
         study_began = self.df_stoves['timestamp'][0]
         daily_mins = 0
         total_mins= 0
 
-        for i, idx in enumerate(cooking_durations_list):
+        for i, idx in enumerate(cooking_events):
             end_time = self.df_stoves['timestamp'][idx[2]]
             start_time = self.df_stoves['timestamp'][idx[1]]
             days_since_start = (end_time - study_began).days
@@ -447,8 +453,8 @@ class Household:
                 daily_cooking.update({day+1: daily_mins})
                 day = days_since_start
                 daily_mins = (end_time - start_time).seconds / 60
-                if i == len(cooking_durations_list) - 1:
-                    if days_since_start == study_duration:
+                if i == len(cooking_events) - 1:
+                    if days_since_start == self.study_days:
                         day = days_since_start
                     else:
                         day += 1
@@ -457,9 +463,9 @@ class Household:
 
             # daily_mins += (end_time - start_time).seconds / 60
 
-            elif i == len(cooking_durations_list) - 1:
+            elif i == len(cooking_events) - 1:
                 daily_mins += (end_time - start_time).seconds / 60
-                if days_since_start == study_duration:
+                if days_since_start == self.study_days:
                     day = days_since_start
                 else:
                     day += 1
@@ -468,8 +474,8 @@ class Household:
             else:
                 daily_mins += (end_time - start_time).seconds / 60
 
-        if len(daily_cooking) != study_duration:
-            for i in range(study_duration):
+        if len(daily_cooking) != self.study_days:
+            for i in range(self.study_days):
                 day = i + 1
                 if day not in daily_cooking:
                     mins = 0
@@ -496,7 +502,6 @@ class Household:
         all_cooking_info = []
 
         for s in stoves:
-            # cooking_durations_list = self._find_cooking_durations_idx(s)
             daily_cooking = self._daily_cooking_time(stoves[s])
 
             all_cooking_info.append(daily_cooking)
@@ -524,13 +529,18 @@ class Household:
 
         stove_type = self.check_stove_type(stove)
 
+        colors = {'telia': ['blue', "turquoise"],
+                 'malgchch': ['red', "salmon"],
+                        '3stone': ['limegreen', 'springgreen'],
+                        'om30': ['purple', 'rebeccapurple'],
+                        'firewood': ['magenta', 'palevioletred'],
+                        'charcoal': ['black', 'lightslategrey'],
+                        'lpg': ['pink', 'coral']
+        }
 
-        colors = ["blue", "red", 'orange', 'green']
-
-        stove_colors = {}
-        for i, s in enumerate(stove_type):
-            stove_colors.update({s: colors[i]})
-
+        cooking_colors = {"start": "turquoise",
+                          "peak": 'red',
+                          "end": "black"}
         fig = go.Figure()
 
         fig.update_yaxes(title_text="Temp")
@@ -543,9 +553,10 @@ class Household:
                 y=self.df_stoves[s].values,
                 mode='lines',
                 marker=dict(
-                        color=stove_colors[s],
+                        color=colors[s][0],
                         size=5),
                 name=s.split(' ')[0],
+                legendgroup= s
             ))
 
         if cooking_events:
@@ -559,49 +570,43 @@ class Household:
                     peak.append(point[0])
                     start.append(point[1])
                     end.append(point[2])
-                    start_times = list(self.df_stoves['timestamp'][start])
-                    end_times = list(self.df_stoves['timestamp'][end])
-                    shapes = {}
-                    for i, value in enumerate(start_times):
-                        shapes['Event' + str(i+1)] = go.layout.Shape(
-                                            type='rect',
-                                            xref="x",
-                                            yref="paper",
-                                            x0=start_times[i],
-                                            y0=0,
-                                            x1=end_times[i],
-                                            y1=1,
-                                            fillcolor=stove_colors[s],
-                                            opacity=0.2,
-                                            layer="below"
-                                            )
-                    duration_shapes = list(shapes.values())
-                    fig.update_layout(shapes=duration_shapes)
-                fig.add_trace(
-                            go.Scatter(x=self.df_stoves['timestamp'][peak],
-                                       y=self.df_stoves[s][peak],
-                                       mode='markers',
-                                       marker=dict(
-                                                color=stove_colors[s],
-                                                size=5),
-                                       name=s + ' Cooking Events',
 
-                                       )
-                        )
-                # fig.add_trace(
-                #             go.Scatter(x=self.df_stoves['timestamp'][start],
-                #                        y=self.df_stoves[s][start],
-                #                        mode='markers',
-                #                        name=s + ' Cooking start'
-                #                        )
-                #         )
-                # fig.add_trace(
-                #             go.Scatter(x=self.df_stoves['timestamp'][end],
-                #                        y=self.df_stoves[s][end],
-                #                        mode='markers',
-                #                        name=s + ' Cooking end'
-                #                        )
-                #         )
+                fig.add_trace(
+                                go.Scatter(x=self.df_stoves['timestamp'][peak],
+                                           y=self.df_stoves[s][peak],
+                                           mode='markers',
+                                           marker=dict(
+                                                    color=cooking_colors['peak'],
+                                                    size=5),
+                                           name=s + ' Cooking Events',
+                                           legendgroup=s
+
+                                           )
+                            )
+                fig.add_trace(
+                                go.Scatter(x=self.df_stoves['timestamp'][start],
+                                           y=self.df_stoves[s][start],
+                                           mode='markers',
+                                           marker=dict(
+                                                    color=cooking_colors['start'],
+                                                    size=10,
+                                                    symbol='triangle-right'),
+                                           name=s + ' Cooking start',
+                                           legendgroup=s
+                                           )
+                            )
+                fig.add_trace(
+                                go.Scatter(x=self.df_stoves['timestamp'][end],
+                                           y=self.df_stoves[s][end],
+                                           mode='markers',
+                                           marker=dict(
+                                                    color=cooking_colors['end'],
+                                                    size=10,
+                                                    symbol='triangle-left'),
+                                           name=s + ' Cooking end',
+                                           legendgroup=s
+                                           )
+                            )
 
         return fig.show()
 
@@ -651,39 +656,92 @@ class Household:
                                )
                 )
         return fig.show()
+    
+    def plot_usage(self, stove, fuel):
+    
+        stove_type = self.check_stove_type(stove)
+        fuel_type = self.check_fuel_type(fuel)
+    
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+        fig.update_xaxes(title_text="Time")
+        fig.update_layout(title_text="Household: " + hh_id )
+    
+        colors = {'telia': 'blue',
+                        'malgchch': 'red',
+                        '3stone': 'green',
+                        'om30': 'purple',
+                        'firewood': 'magenta',
+                        'charcoal': 'black',
+                        'lpg': 'pink'
+        }
+    
+        for s in stove_type:
+            fig.add_trace(
+                go.Scatter(x=self.df_stoves['timestamp'],
+                           y=self.df_stoves[s].values,
+                            mode='lines',
+                            marker=dict(
+                                color=colors[s],
+                                size=5),
+                            name=s.split(' ')[0]),
+                            secondary_y=False,
+                    )
+    
+        for f in fuel_type:
+            fig.add_trace(
+                    go.Scatter(
+                        x=self.df_stoves['timestamp'],
+                        y=self.df_stoves[f].values,
+                        mode='lines',
+                        marker=dict(
+                                color=colors[f],
+                                size=5
+                                ),
+                        name=f.split(' ')[0]),
+                        secondary_y=True,
+                    )
+    
+        # Set y-axes titles
+        fig.update_yaxes(title_text="<b>primary</b> Temperature", secondary_y=False)
+        fig.update_yaxes(title_text="<b>secondary</b> Weight", secondary_y=True)
 
+        return fig.show()
 
 if __name__ == "__main__":
     from olivier_file_convert import reformat_olivier_files as reformat
+    #
+    # filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
+    #          'HH_44_2018-08-17_13-49-22_processed_v2.csv',
+    #          'HH_141_2018-08-17_17-50-31_processed_v2.csv',
+    #          'HH_318_2018-08-25_18-35-07_processed_v2.csv',
+    #          'HH_319_2018-08-25_19-27-32_processed_v2.csv',
+    #          'HH_326_2018-08-25_17-52-16_processed_v2.csv',
+    #          'HH_345_2018-08-25_15-52-57_processed_v2.csv',
+    #          'HH_371_2018-08-17_15-31-52_processed_v2.csv'
+    #          ]
+    #
+    # for file in filepaths:
+    #     df, stoves, fuels, hh_id = reformat('./data_files/' + file)
+    #     x = Household(df, stoves, fuels, hh_id)
+    #     print(file, '\n',
+    #         # x.check_stove_type(),
+    #         # x.check_fuel_type('lpg')
+    #         # x.cooking_events(),
+    #         # x.fuel_usage()
+    #         #   , '\n',
+    #         # x.cooking_duration(),
+    #         # x.df_stoves
+    #         # x.study_duration.total_seconds()/86400
+    #     )
+    #     # x.plot_fuel(fuel_usage=True)
+    #     x.plot_stove(cooking_events=True)
 
-    filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
-             'HH_44_2018-08-17_13-49-22_processed_v2.csv',
-             'HH_141_2018-08-17_17-50-31_processed_v2.csv',
-             'HH_318_2018-08-25_18-35-07_processed_v2.csv',
-             'HH_319_2018-08-25_19-27-32_processed_v2.csv',
-             'HH_326_2018-08-25_17-52-16_processed_v2.csv',
-             'HH_345_2018-08-25_15-52-57_processed_v2.csv',
-             'HH_371_2018-08-17_15-31-52_processed_v2.csv'
-             ]
+    df, stoves, fuels, hh_id = reformat('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
+    x = Household(df, stoves, fuels, hh_id, time_between_events=30, weight_threshold=0.05)
+    print(x.cooking_duration(), x.fuel_usage())
+    # # x.plot_fuel().show()
+    # x.plot_stove(cooking_events=True).show()
+    # # x.plot_usage(stoves, fuels)
 
-    for file in filepaths:
-        df, stoves, fuels, hh_id = reformat('./data_files/' + file)
-        x = Household(df, stoves, fuels, hh_id)
-        print(file, '\n',
-            # x.check_stove_type(),
-            # x.check_fuel_type('lpg')
-            # x.cooking_events(),
-            # x.fuel_usage(), '\n',
-            x.cooking_duration()
-            # x.df_stoves
-            # x.study_duration.total_seconds()/86400
-        )
-        # x.plot_fuel(fuel_usage=True)
-        # x.plot_stove()
-
-    # df, stoves, fuels, hh_id = reformat('./data_files/HH_44_2018-08-17_13-49-22_processed_v2.csv')
-    # x = Household(df, stoves, fuels, hh_id, time_between_events=30)
-    # print(x.cooking_duration(stove="telia"))
-    # x.plot_fuel(fuel_usage=True)
-    # x.plot_stove(stove="telia", cooking_events=True)
 
