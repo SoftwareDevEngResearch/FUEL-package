@@ -542,20 +542,37 @@ class Household:
                                        name=s + ' Cooking Events'
                                        )
                         )
-                fig.add_trace(
-                            go.Scatter(x=self.df_stoves['timestamp'][start],
-                                       y=self.df_stoves[s][start],
-                                       mode='markers',
-                                       name=s + ' Cooking start'
-                                       )
-                        )
-                fig.add_trace(
-                            go.Scatter(x=self.df_stoves['timestamp'][end],
-                                       y=self.df_stoves[s][end],
-                                       mode='markers',
-                                       name=s + ' Cooking end'
-                                       )
-                        )
+                # fig.add_trace(
+                #             go.Scatter(x=self.df_stoves['timestamp'][start],
+                #                        y=self.df_stoves[s][start],
+                #                        mode='markers',
+                #                        name=s + ' Cooking start'
+                #                        )
+                #         )
+                # fig.add_trace(
+                #             go.Scatter(x=self.df_stoves['timestamp'][end],
+                #                        y=self.df_stoves[s][end],
+                #                        mode='markers',
+                #                        name=s + ' Cooking end'
+                #                        )
+                #         )
+                start_times = list(self.df_stoves['timestamp'][start])
+                end_times = list(self.df_stoves['timestamp'][end])
+                shapes = {}
+                for i, value in enumerate(start_times):
+                    shapes['Event' + str(i+1)] = go.layout.Shape(
+                                        type='rect',
+                                        xref="x",
+                                        yref="paper",
+                                        x0=start_times[i],
+                                        y0=0,
+                                        x1=end_times[i],
+                                        y1=1,
+                                        fillcolor="LightSalmon",
+                                        opacity=0.3,
+                                        layer="below")
+                duration_shapes = list(shapes.values())
+                fig.update_layout(shapes=duration_shapes)
 
         return fig.show()
 
@@ -610,34 +627,34 @@ class Household:
 if __name__ == "__main__":
     from olivier_file_convert import reformat_olivier_files as reformat
 
-    filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
-             'HH_44_2018-08-17_13-49-22_processed_v2.csv',
-             'HH_141_2018-08-17_17-50-31_processed_v2.csv',
-             'HH_318_2018-08-25_18-35-07_processed_v2.csv',
-             'HH_319_2018-08-25_19-27-32_processed_v2.csv',
-             'HH_326_2018-08-25_17-52-16_processed_v2.csv',
-             'HH_345_2018-08-25_15-52-57_processed_v2.csv',
-             'HH_371_2018-08-17_15-31-52_processed_v2.csv'
-             ]
+    # filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
+    #          'HH_44_2018-08-17_13-49-22_processed_v2.csv',
+    #          'HH_141_2018-08-17_17-50-31_processed_v2.csv',
+    #          'HH_318_2018-08-25_18-35-07_processed_v2.csv',
+    #          'HH_319_2018-08-25_19-27-32_processed_v2.csv',
+    #          'HH_326_2018-08-25_17-52-16_processed_v2.csv',
+    #          'HH_345_2018-08-25_15-52-57_processed_v2.csv',
+    #          'HH_371_2018-08-17_15-31-52_processed_v2.csv'
+    #          ]
+    #
+    # for file in filepaths:
+    #     df, stoves, fuels, hh_id = reformat('./data_files/' + file)
+    #     x = Household(df, stoves, fuels, hh_id)
+    #     print(file, '\n',
+    #         # x.check_stove_type(),
+    #         # x.check_fuel_type('lpg')
+    #         # x.cooking_events(),
+    #         # x.fuel_usage() #, '\n',
+    #         x.cooking_duration()
+    #         # x.df_stoves
+    #         # x.study_duration.total_seconds()/86400
+    #     )
+    #     # x.plot_fuel(fuel_usage=True)
+    #     x.plot_stove(cooking_events=True)
 
-    for file in filepaths:
-        df, stoves, fuels, hh_id = reformat('./data_files/' + file)
-        x = Household(df, stoves, fuels, hh_id)
-        print(file, '\n',
-            # x.check_stove_type(),
-            # x.check_fuel_type('lpg')
-            # x.cooking_events(),
-            # x.fuel_usage() #, '\n',
-            x.cooking_duration()
-            # x.df_stoves
-            # x.study_duration.total_seconds()/86400
-        )
-        # x.plot_fuel(fuel_usage=True)
-        x.plot_stove(cooking_events=True)
-
-    # df, stoves, fuels, hh_id = reformat('./data_files/HH_141_2018-08-17_17-50-31_processed_v2.csv')
-    # x = Household(df, stoves, fuels, hh_id, time_between_events=30)
-    # print(x.cooking_duration('malgchch'))
-    # # x.plot_fuel(fuel_usage=True)
-    # # x.plot_stove(cooking_events=True)
+    df, stoves, fuels, hh_id = reformat('./data_files/HH_38_2018-08-26_15-01-40_processed_v3.csv')
+    x = Household(df, stoves, fuels, hh_id, time_between_events=30)
+    # print(x.cooking_duration('telia'))
+    # x.plot_fuel(fuel_usage=True)
+    x.plot_stove(stove="telia", cooking_events=True)
 
