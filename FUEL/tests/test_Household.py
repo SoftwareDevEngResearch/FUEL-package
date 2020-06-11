@@ -23,32 +23,27 @@ for file in file_paths:
         assert x.study_duration.days > 0
 
 
-    def test_check_stove_type_1():
-        '''Testing that the check stoves function returns the same stoves as the input stoves'''
+    def test_check_item_stoves():
+        '''Testing that the check items function returns the same stoves as the input stoves'''
 
-        for s in x.check_stove_type():
+        for s in x._check_item(x.stoves):
             assert s in stoves
 
 
-    def test_check_stove_type_2():
-        '''Testing that the check stoves function returns stoves that are in the dataframe'''
+    def test_check_item_fuels():
+        '''Testing that the check item function returns the same fuels as the input fuels'''
 
-        for s in x.check_stove_type():
-            assert s in df.columns
-
-
-    def test_check_fuel_type_1():
-        '''Testing that the check fuels function returns the same fuels as the input fuels'''
-
-        for f in x.check_fuel_type():
+        for f in x._check_item(x.fuels):
             assert f in fuels
 
 
-    def test_check_fuel_type_2():
-        '''Testing that the check fuels function returns fuels that are in the dataframe'''
+    def test_check_item_columns():
+        '''Testing that the check items function returns items that are in the dataframe'''
 
-        for f in x.check_fuel_type():
-            assert f in df.columns
+        for i in x._check_item(stoves):
+            assert i in df.columns
+        for j in x._check_item(fuels):
+            assert j in df.columns
 
 
     def test_find_weight_changes():
@@ -120,7 +115,7 @@ for file in file_paths:
 
         for s in stoves:
             stove_events = x.cooking_events(s)
-            daily_use = x._daily_cooking_time(stove_events[s])
+            daily_use = x._daily_cooking_time(stove_events)
 
             assert len(daily_use) == x.study_days + 1
 
@@ -130,7 +125,7 @@ for file in file_paths:
 
         for s in stoves:
             stove_events = x.cooking_events(s)
-            daily_use = x._daily_cooking_time(stove_events[s])
+            daily_use = x._daily_cooking_time(stove_events)
 
             total_usage = 0
             for i in range(x.study_days):
