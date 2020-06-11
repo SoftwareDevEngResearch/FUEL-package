@@ -4,17 +4,44 @@
 During an improved cookstove project if a FUEL sensor is used this tool may be used to vizualize and analyze the data produced by a households cookstove temperature sensor and the weight change information produced by the FUEL sensor. 
 
 
+## Contained in this Package 
+
+**example datafiles** : These are example files that should be used to test the functionality of the tool as well as examples of what data might look like. 
+
+**example_file_convert.py** : This file was created specificly to convert the example datafiles into the appropriate format for analysis. If your datafiles do not match those of the provided datafiles a new file should be created to prodcue the same outputs. 
+
+**household.py** : This file contains the actual vizualization and analysis tools which are contained within the Household class. 
+
+**tests** : This folder contains a **test_household.py** file as well as an __init__.py file which will be used to test the functionality of the Household class inside **household.py** 
+
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+It is important that before one inputs data into the main file that it is in the correct format. This package contains a eight example data files and a sample data cleaning file (**example_file_convert.py**) which produces data in the correct format for the **household.py** file. If your data does not match the format of the example file you must first reformat your data before using this tool. 
 
-### Prerequisites
+## Correct Data Input Format
 
-What things you need to install the software and how to install them
+* **Dataframe**: Includes columns with the following information (all column names should be lower case) 
+  - timestamp : This column should include all timestamp data in datetime format 
+  - stoves : Each stove in the household should have its own column with the name being only the name of the stove. The data should be in degrees that are represented as floating numbers. 
+  - fuels : Each fuel in the household should have its own column with the name being only the name of the fuel. The data should be in kilograms that are represented as floating numbers. 
+* **Stoves** : A list of all stoves in the household, each of which should be a string. These names should match the names of the stoves in the dataframe columns exactly. 
+* **Fuels** : A list of all fuels in the household, each of which should be a string. These names should match the names of the fuels in the dataframe columns exactly. 
+* **Household ID** : Some sort of unique houehold identification should be assigned and should be input as a string. 
 
-```
-Give examples
-```
+### Packages Needed to Run Files 
+
+For **example_file_convert.py** 
+* pandas 
+* numpy 
+
+For **household.py** 
+* pandas 
+* plotly
+* scipy 
+
+### Example 
+
+
 
 ### Installing
 
@@ -47,9 +74,6 @@ Give an example
 ```
 
 
-## Deployment
-
-Add additional notes about how to deploy this on a live system
 
 ## Authors
 
