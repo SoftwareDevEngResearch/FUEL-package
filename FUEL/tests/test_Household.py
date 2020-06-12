@@ -1,5 +1,5 @@
 from ..household import Household
-from ..olivier_file_convert import reformat_olivier_files as reformat
+from ..example_file_convert import reformat_example_files as reformat
 
 
 file_paths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',

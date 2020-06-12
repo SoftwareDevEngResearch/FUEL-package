@@ -620,7 +620,7 @@ class Household:
 
 
 if __name__ == "__main__":
-    from olivier_file_convert import reformat_olivier_files as reformat
+    from olivier_file_convert import reformat_example_files as reformat
 
     # filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
     #          'HH_44_2018-08-17_13-49-22_processed_v2.csv',
