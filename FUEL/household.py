@@ -6,8 +6,7 @@ from scipy.signal import find_peaks
 
 class Household:
 
-    def __init__(self, dataframe, stoves, fuels, hh_id, temp_threshold=15, time_between_events=60, min_cooktime=15,
-                 weight_threshold=0.2):
+    def __init__(self, dataframe, stoves, fuels, hh_id, temp_threshold=15, time_between_events=60,weight_threshold=0.2):
         '''Verifying that the input arguments are in the correct formats and set self values
 
         Args:
@@ -28,7 +27,6 @@ class Household:
             time_between_events (int): The time threshold (minutes) that will mark the minimum time between cooking
                                        events. This value should be greater than or equal to zero. Defaults to 60 mins.
 
-            min_cook_time (int): The minimum cooking time (mins). Default value of 15 mins.
 
             weight_threshold (float): The weight change (kg) that should be ignored. All weight changes above this
                                       value will be marked. Defaults to 0.2 kg.
@@ -40,7 +38,6 @@ class Household:
             hh_id : Input Household ID
             temp_threshold: Input temperature threshold
             time_between_events: Input time between cooking events
-            min_cook_time : Input min cooking time
             study_duration: The duration of the study in datetime format
             weight_threshold: Input weight threshold
 
@@ -60,8 +57,6 @@ class Household:
             raise ValueError("The time between events must be a positive integer!")
         if type(temp_threshold) != int or temp_threshold < 0:
             raise ValueError("The temperature threshold must be a positive integer!")
-        if type(min_cooktime) != int or min_cooktime < 0:
-            raise ValueError("The minimum cooking time must be a positive integer!")
         if type(weight_threshold) != float or weight_threshold < 0:
             raise ValueError("The weight threshold must be a positive number!")
 
@@ -79,7 +74,6 @@ class Household:
         self.hh_id = hh_id
         self.temp_threshold = temp_threshold
         self.time_between_events = time_between_events
-        self.min_cooktime = min_cooktime
         self.study_duration = self.df_stoves['timestamp'].iloc[-1] - self.df_stoves['timestamp'][0]
         self.study_days = round(self.study_duration.total_seconds()/86400) # rounding to the nearest day
         self.weight_threshold = weight_threshold
@@ -87,7 +81,6 @@ class Household:
         self.stove_and_fuel_usage()
         self.plot_fuel(fuel_usage=True)
         self.plot_stove(cooking_events=True)
-
 
     def _check_item(self, item):
         '''Check if stove or fuel input is in dataset
@@ -449,7 +442,7 @@ class Household:
 
         fig.update_yaxes(title_text="Temp")
         fig.update_xaxes(title_text="Time")
-        fig.update_layout(title_text="Household: " + hh_id + " " + stove + " Stove Temperature")
+        fig.update_layout(title_text="Household: " + self.hh_id + " " + stove + " Stove Temperature")
 
         for s in stove_type:
             fig.add_trace(go.Scatter(
@@ -539,7 +532,7 @@ class Household:
 
         fig.update_yaxes(title_text="Weight")
         fig.update_xaxes(title_text="Time")
-        fig.update_layout(title_text="Household: " + hh_id + " " + fuel + " Weight Readings")
+        fig.update_layout(title_text="Household: " + self.hh_id + " " + fuel + " Weight Readings")
 
         for f in fuel_type:
             fig.add_trace(

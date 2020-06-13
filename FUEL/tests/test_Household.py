@@ -90,7 +90,7 @@ for file in file_paths:
         '''Testing that the fuel_usage function returns a dataframe with the appropriate fuels'''
 
         for f in fuels:
-            assert f in x.fuel_usage().columns
+            assert f+'(kg)' in x.fuel_usage().columns
 
 
     def test_fuel_usage_days():
@@ -144,4 +144,4 @@ for file in file_paths:
         '''Testing that the cooking_duration function returns a dataframe with the appropriate stoves'''
 
         for s in stoves:
-            assert s in x.cooking_duration().columns
+            assert s+'(min)' in x.cooking_duration().columns
