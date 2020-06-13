@@ -59,7 +59,36 @@ from FUEL.example_file_convert import reformat_example_file as reformat
 
 df, stoves, fuels, hh_id = reformat('HH_319_2018-08-25_19-27-32_processed_v2.csv') 
 ```
-This will produce a dataframe ![alt text](https://github.com/HeatherMM1321/FUEL-package/blob/master/df_output.PNG)
+This will produce a dataframe,  ![alt text](https://github.com/HeatherMM1321/FUEL-package/blob/master/example_outputs/df_output.PNG)
+a list of all of the stoves in the dataset, 
+```
+['om30', '3stone', 'telia']
+```
+a list of all of the fuels in the dataset, 
+```
+['lpg', 'charcoal', 'firewood'] 
+```
+and finally the household identification. 
+
+```
+319
+```
+This is the data you will need as inputs for the **Household** tool. 
+
+Next you will need to import the **household.Household** function 
+
+```
+from FUEL.household import Household 
+
+Household(df, stove, fuels, hh_id) 
+```
+This will produce a dataframe containing usage information for each stove and fuel in the household. Where total is the total usage during the entire study and each row corresponds to a single 24 hour period in the study.
+
+![alt text](https://github.com/HeatherMM1321/FUEL-package/blob/master/example_outputs/dataframe.PNG) 
+
+An interactive html based plot for both fuel and stove usage will also be produced. 
+![alt text](https://github.com/HeatherMM1321/FUEL-package/blob/master/example_outputs/fuel.PNG) 
+![alt text](https://github.com/HeatherMM1321/FUEL-package/blob/master/example_outputs/stove_full.PNG) 
 
 ## Running the tests
 
