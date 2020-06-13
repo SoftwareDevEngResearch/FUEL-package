@@ -620,7 +620,7 @@ class Household:
 
 
 if __name__ == "__main__":
-    from olivier_file_convert import reformat_example_files as reformat
+    from example_file_convert import reformat_example_files as reformat
 
     # filepaths = ['HH_38_2018-08-26_15-01-40_processed_v3.csv',
     #          'HH_44_2018-08-17_13-49-22_processed_v2.csv',
@@ -649,11 +649,12 @@ if __name__ == "__main__":
     #     x.plot_stove()
 
     df, stoves, fuels, hh_id = reformat('./data_files/HH_319_2018-08-25_19-27-32_processed_v2.csv')
-    x = Household(df, stoves, fuels, hh_id, time_between_events=30, weight_threshold=0.05)
+    # x = Household(df, stoves, fuels, hh_id, time_between_events=30, weight_threshold=0.05)
     # print(x._daily_cooking_time(events))
     # print(x.cooking_duration())
-    x.plot_fuel(fuel_usage=True)
+    # x.plot_fuel(fuel_usage=True)
     # x.plot_stove(cooking_events=True)
     # # x.plot_usage()
     # print(x.color_assignment(x.stoves))
 
+    print(df)
