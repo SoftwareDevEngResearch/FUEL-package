@@ -39,27 +39,27 @@ For **household.py**
 * plotly
 * scipy 
 
-### Example 
-
-
-
 ### Installing
+To install the package you can either 
+* Clone a local copy of this package directly from the github page 
+```
+https://github.com/HeatherMM1321/FUEL-package
+```
+* Use pip install with the following command 
+```
+pip install -i https://test.pypi.org/simple/ FUEL-millerh
+```
+Once the package is installed along with all dependencies files, you can obtain stove and fuel usage metrics as well as view interactive plots by using the Household class in household. See example below for more detail. 
 
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
+### Example 
+To run this example using the example data files provided you will first need to input the datafile in to the **example_file_convert.reformat_example_file()** function as shown below. For this example I will be using the data file labeld as **HH_319_2018-08-25_19-27-32_processed_v2.csv** (it should be noted that the example_file_convert will only work with data that is formated like the example files. If you wish to use other datafiles you will need to reformat your data to match the outputs that this file produces). 
 
 ```
-Give the example
-```
+from FUEL.example_file_convert import reformat_example_file as reformat 
 
-And repeat
-
+df, stoves, fuels, hh_id = reformat('HH_319_2018-08-25_19-27-32_processed_v2.csv') 
 ```
-until finished
-```
-
-End with an example of getting some data out of the system or using it for a little demo
+This will produce a dataframe ![alt text](https://github.com/HeatherMM1321/FUEL-package/blob/master/df_output.PNG)
 
 ## Running the tests
 
