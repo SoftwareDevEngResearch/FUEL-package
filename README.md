@@ -18,16 +18,6 @@ During an improved cookstove project if a FUEL sensor is used this tool may be u
 
 It is important that before one inputs data into the main file that it is in the correct format. This package contains a eight example data files and a sample data cleaning file (**example_file_convert.py**) which produces data in the correct format for the **household.py** file. If your data does not match the format of the example file you must first reformat your data before using this tool. 
 
-## Correct Data Input Format
-
-* **Dataframe**: Includes columns with the following information (all column names should be lower case) 
-  - timestamp : This column should include all timestamp data in datetime format 
-  - stoves : Each stove in the household should have its own column with the name being only the name of the stove. The data should be in degrees that are represented as floating numbers. 
-  - fuels : Each fuel in the household should have its own column with the name being only the name of the fuel. The data should be in kilograms that are represented as floating numbers. 
-* **Stoves** : A list of all stoves in the household, each of which should be a string. These names should match the names of the stoves in the dataframe columns exactly. 
-* **Fuels** : A list of all fuels in the household, each of which should be a string. These names should match the names of the fuels in the dataframe columns exactly. 
-* **Household ID** : Some sort of unique houehold identification should be assigned and should be input as a string. 
-
 ### Packages Needed to Run Files 
 
 For **example_file_convert.py** 
@@ -50,6 +40,29 @@ https://github.com/HeatherMM1321/FUEL-package
 pip install -i https://test.pypi.org/simple/ FUEL-millerh
 ```
 Once the package is installed along with all dependencies files, you can obtain stove and fuel usage metrics as well as view interactive plots by using the Household class in household. See example below for more detail. 
+
+### Inputs/Outputs
+
+**example_file_convert.reformat_example_file(datafile_path)** 
+* Outputs: 
+  * Properly formatted dataframe with sensor data 
+  * List of all stoves in data set 
+  * List of all fuels in dataset 
+  * Household ID 
+
+**household.Household(dataframe, stoves, fuels, hh_id, temp_threshold=15, time_between_events=60, weight_threshold=0.2)** 
+* Inputs: 
+  * Dataframe : Should be formated in the same manner as the output dataframe above (see example) 
+  * stoves(list of strs) : Names of all stoves in the dataframe (shoud match the names of column headers exactly) 
+  * fuels(list of strs) : Names of all fuels in the dataframe (shoud match the names of column headers exactly) 
+  * hh_id(str) : Unique houehsold ID 
+  * temp_threshold(int) : Minimum temperature in degrees from ambient for cooking event identification, **default=15**(i.e. no cooking events will be identified at a temp below this value) 
+  * time_between_events(int) : Minimum time in mins between identified cooking events, **default=60**
+  * weight_threshold(float) : Minimum significant weight change in kg, **default=0.2** (i.e. no weight change below this value will be recorded) 
+* Outputs: 
+  * Dataframe contianing all stove and fuel usage recorded in datafile 
+  * Interactive plot containing all stove data 
+  * Interactive plot containg all fuel data 
 
 ### Example 
 To run this example using the example data files provided you will first need to input the datafile in to the **example_file_convert.reformat_example_file()** function as shown below. For this example I will be using the data file labeld as **HH_319_2018-08-25_19-27-32_processed_v2.csv** (it should be noted that the example_file_convert will only work with data that is formated like the example files. If you wish to use other datafiles you will need to reformat your data to match the outputs that this file produces). 
@@ -75,7 +88,7 @@ and finally the household identification.
 ```
 This is the data you will need as inputs for the **Household** tool. 
 
-Next you will need to import the **household.Household** function 
+Next you will need to import the **household.Household()** class. 
 
 ```
 from FUEL.household import Household 
@@ -94,15 +107,6 @@ An interactive html based plot for both fuel and stove usage will also be produc
 
 Explain how to run the automated tests for this system
 
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-
 
 ## Authors
 
@@ -112,5 +116,3 @@ Give an example
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-## Acknowledgments
