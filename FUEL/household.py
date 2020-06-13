@@ -84,6 +84,11 @@ class Household:
         self.study_days = round(self.study_duration.total_seconds()/86400) # rounding to the nearest day
         self.weight_threshold = weight_threshold
 
+        self.stove_and_fuel_usage()
+        self.plot_fuel(fuel_usage=True)
+        self.plot_stove(cooking_events=True)
+
+
     def _check_item(self, item):
         '''Check if stove or fuel input is in dataset
 
@@ -243,14 +248,16 @@ class Household:
 
         fuel_change = []
         fuel_weight_changes = {}  # will be used in other functions
+        ind = []
         for f in fuel_type:
             changes = self._find_weight_changes(f)
             fuel_weight_changes.update({f: changes})
             daily_usage = self._daily_fuel_use(f, changes)
             fuel_change.append(daily_usage)
+            ind.append(f+"(kg)")
 
         self.weight_changes = fuel_weight_changes
-        fuel_use = pd.DataFrame(fuel_change, index=fuel_type).transpose()
+        fuel_use = pd.DataFrame(fuel_change, index=ind).transpose()
         return fuel_use.sort_index(ascending=True)
 
     def cooking_events(self, stove="All Stoves"):
@@ -393,13 +400,14 @@ class Household:
         '''
         stove_type = self._check_item(stove)
         all_cooking_info = []
+        ind = []
 
         for s in stove_type:
             daily_cooking = self._daily_cooking_time(self.cooking_events(s))
-
+            ind.append(s+'(min)')
             all_cooking_info.append(daily_cooking)
 
-        cooking_times = pd.DataFrame(all_cooking_info, index=stove_type).transpose()
+        cooking_times = pd.DataFrame(all_cooking_info, index=ind).transpose()
 
         return cooking_times.sort_index(ascending=True)
 
@@ -565,58 +573,61 @@ class Household:
                                )
                 )
         return fig.show()
-    
-    def plot_usage(self, stove, fuel):
-        '''This function is still being worked on. Not fully functional!'''
-    
-        stove_type = self.check_stove_type(stove)
-        fuel_type = self.check_fuel_type(fuel)
-    
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
-    
-        fig.update_xaxes(title_text="Time")
-        fig.update_layout(title_text="Household: " + hh_id )
-    
-        colors = {'telia': 'blue',
-                        'malgchch': 'red',
-                        '3stone': 'green',
-                        'om30': 'lavender',
-                        'firewood': 'magenta',
-                        'charcoal': 'black',
-                        'lpg': 'pink'
-        }
-    
-        for s in stove_type:
-            fig.add_trace(
-                go.Scatter(x=self.df_stoves['timestamp'],
-                           y=self.df_stoves[s].values,
-                            mode='lines',
-                            marker=dict(
-                                color=colors[s],
-                                size=5),
-                            name=s.split(' ')[0]),
-                            secondary_y=False,
-                    )
-    
-        for f in fuel_type:
-            fig.add_trace(
-                    go.Scatter(
-                        x=self.df_stoves['timestamp'],
-                        y=self.df_stoves[f].values,
-                        mode='lines',
-                        marker=dict(
-                                color=colors[f],
-                                size=5
-                                ),
-                        name=f.split(' ')[0]),
-                        secondary_y=True,
-                    )
-    
-        # Set y-axes titles
-        fig.update_yaxes(title_text="<b>primary</b> Temperature", secondary_y=False)
-        fig.update_yaxes(title_text="<b>secondary</b> Weight", secondary_y=True)
 
-        return fig.show()
+    def stove_and_fuel_usage(self):
+        all_usage = pd.concat([self.cooking_duration(), self.fuel_usage()], axis=1)
+        return print(all_usage)
+    # def plot_usage(self, stove, fuel):
+    #     '''This function is still being worked on. Not fully functional!'''
+    #
+    #     stove_type = self.check_stove_type(stove)
+    #     fuel_type = self.check_fuel_type(fuel)
+    #
+    #     fig = make_subplots(specs=[[{"secondary_y": True}]])
+    #
+    #     fig.update_xaxes(title_text="Time")
+    #     fig.update_layout(title_text="Household: " + hh_id )
+    #
+    #     colors = {'telia': 'blue',
+    #                     'malgchch': 'red',
+    #                     '3stone': 'green',
+    #                     'om30': 'lavender',
+    #                     'firewood': 'magenta',
+    #                     'charcoal': 'black',
+    #                     'lpg': 'pink'
+    #     }
+    #
+    #     for s in stove_type:
+    #         fig.add_trace(
+    #             go.Scatter(x=self.df_stoves['timestamp'],
+    #                        y=self.df_stoves[s].values,
+    #                         mode='lines',
+    #                         marker=dict(
+    #                             color=colors[s],
+    #                             size=5),
+    #                         name=s.split(' ')[0]),
+    #                         secondary_y=False,
+    #                 )
+    #
+    #     for f in fuel_type:
+    #         fig.add_trace(
+    #                 go.Scatter(
+    #                     x=self.df_stoves['timestamp'],
+    #                     y=self.df_stoves[f].values,
+    #                     mode='lines',
+    #                     marker=dict(
+    #                             color=colors[f],
+    #                             size=5
+    #                             ),
+    #                     name=f.split(' ')[0]),
+    #                     secondary_y=True,
+    #                 )
+    #
+    #     # Set y-axes titles
+    #     fig.update_yaxes(title_text="<b>primary</b> Temperature", secondary_y=False)
+    #     fig.update_yaxes(title_text="<b>secondary</b> Weight", secondary_y=True)
+    #
+    #     return fig.show()
 
 
 if __name__ == "__main__":
@@ -649,7 +660,7 @@ if __name__ == "__main__":
     #     x.plot_stove()
 
     df, stoves, fuels, hh_id = reformat('./data_files/HH_319_2018-08-25_19-27-32_processed_v2.csv')
-    # x = Household(df, stoves, fuels, hh_id, time_between_events=30, weight_threshold=0.05)
+    Household(df, stoves, fuels, hh_id)
     # print(x._daily_cooking_time(events))
     # print(x.cooking_duration())
     # x.plot_fuel(fuel_usage=True)
@@ -657,4 +668,5 @@ if __name__ == "__main__":
     # # x.plot_usage()
     # print(x.color_assignment(x.stoves))
 
-    print(df)
+    # print(stoves, fuels, hh_id)
+
